@@ -174,30 +174,35 @@ export default function Topbar({ onMenuClick }) {
           </button>
           {profileOpen && (
             <div className="absolute top-full right-0 mt-1 w-48 bg-white rounded-card shadow-dropdown border border-border py-1 z-50">
-              <button
-                onClick={() => { setProfileOpen(false); navigate('/settings') }}
-                className="w-full px-3 py-2 text-sm text-left text-ink-secondary hover:bg-surface-hover hover:text-ink transition-colors"
-              >
-                Settings
-              </button>
-              <button
-                onClick={() => { setProfileOpen(false); navigate('/teacher') }}
-                className="w-full px-3 py-2 text-sm text-left text-ink-secondary hover:bg-surface-hover hover:text-ink transition-colors"
-              >
-                Teacher Portal
-              </button>
-              <button
-                onClick={() => { setProfileOpen(false); navigate('/parent') }}
-                className="w-full px-3 py-2 text-sm text-left text-ink-secondary hover:bg-surface-hover hover:text-ink transition-colors"
-              >
-                Parent Portal
-              </button>
-              <button
-                onClick={() => { setProfileOpen(false); navigate('/student') }}
-                className="w-full px-3 py-2 text-sm text-left text-ink-secondary hover:bg-surface-hover hover:text-ink transition-colors"
-              >
-                Student Portal
-              </button>
+              {user?.role === 'admin' ? (
+                <>
+                  <button
+                    onClick={() => { setProfileOpen(false); navigate('/settings') }}
+                    className="w-full px-3 py-2 text-sm text-left text-ink-secondary hover:bg-surface-hover hover:text-ink transition-colors"
+                  >
+                    Settings
+                  </button>
+                  <button
+                    onClick={() => { setProfileOpen(false); navigate('/teacher') }}
+                    className="w-full px-3 py-2 text-sm text-left text-ink-secondary hover:bg-surface-hover hover:text-ink transition-colors"
+                  >
+                    Teacher Portal
+                  </button>
+                  <button
+                    onClick={() => { setProfileOpen(false); navigate('/parent') }}
+                    className="w-full px-3 py-2 text-sm text-left text-ink-secondary hover:bg-surface-hover hover:text-ink transition-colors"
+                  >
+                    Parent Portal
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => { setProfileOpen(false); navigate('/student/profile') }}
+                  className="w-full px-3 py-2 text-sm text-left text-ink-secondary hover:bg-surface-hover hover:text-ink transition-colors"
+                >
+                  My Profile
+                </button>
+              )}
             </div>
           )}
         </div>

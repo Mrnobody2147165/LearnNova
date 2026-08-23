@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, GraduationCap, BookOpen,
   Wallet, FileText, CreditCard, CalendarCheck, BookMarked,
-  BarChart3, Sparkles, Settings, LogOut, X
+  BarChart3, Sparkles, Settings, LogOut, X, ClipboardList, Award, Library
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useSchoolStore } from '../../stores/schoolStore'
@@ -15,6 +15,16 @@ const navSections = [
       { to: '/students', label: 'Students', icon: Users },
       { to: '/teachers', label: 'Teachers', icon: GraduationCap },
       { to: '/classes', label: 'Classes', icon: BookOpen },
+      { to: '/subjects', label: 'Subjects', icon: Library },
+    ],
+  },
+  {
+    label: 'Academics',
+    items: [
+      { to: '/academics/exams', label: 'Exams', icon: ClipboardList },
+      { to: '/academics/grades', label: 'Grades', icon: Award },
+      { to: '/academics/attendance', label: 'Attendance', icon: CalendarCheck },
+      { to: '/academics/homework', label: 'Homework', icon: BookMarked },
     ],
   },
   {
@@ -23,13 +33,6 @@ const navSections = [
       { to: '/fees', label: 'Fees', icon: Wallet },
       { to: '/challans', label: 'E-Challans', icon: FileText },
       { to: '/payments', label: 'Payments', icon: CreditCard },
-    ],
-  },
-  {
-    label: 'Academics',
-    items: [
-      { to: '/attendance', label: 'Attendance', icon: CalendarCheck },
-      { to: '/academics', label: 'Academics', icon: BookMarked },
     ],
   },
   {
@@ -61,7 +64,7 @@ export default function Sidebar({ mobileOpen, onCloseMobile }) {
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-ink truncate">{school.name}</p>
-          <p className="text-xs text-ink-muted truncate">School Management</p>
+          <p className="text-xs text-ink-muted truncate">Admin Portal</p>
         </div>
         <button
           onClick={onCloseMobile}

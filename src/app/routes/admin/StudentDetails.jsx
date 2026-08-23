@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Download, FileText, CheckCircle, XCircle, Clock } from 'lucide-react'
+import { ArrowLeft, FileText, CheckCircle, XCircle, Clock } from 'lucide-react'
 import PageHeader from '../../../components/ui/PageHeader'
 import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
@@ -9,7 +9,6 @@ import StatusBadge from '../../../components/ui/StatusBadge'
 import Tabs from '../../../components/ui/Tabs'
 import LoadingState from '../../../components/ui/LoadingState'
 import EmptyState from '../../../components/ui/EmptyState'
-import { useToast } from '../../../components/ui/Toast'
 import studentService from '../../../services/students'
 import { challans as mockChallans } from '../../../data/challans'
 import { formatPKRFull, formatDate, cn } from '../../../utils/format'
@@ -37,17 +36,9 @@ const mockAttendance = [
   { date: '2026-08-09', status: 'Present' },
 ]
 
-const mockDocuments = [
-  { id: 'DOC-1', name: 'Admission Form', type: 'PDF', date: '2024-03-15' },
-  { id: 'DOC-2', name: 'Birth Certificate', type: 'PDF', date: '2024-03-15' },
-  { id: 'DOC-3', name: 'Previous School Result', type: 'PDF', date: '2024-03-15' },
-  { id: 'DOC-4', name: 'Transfer Certificate', type: 'PDF', date: '2024-03-15' },
-]
-
 export default function StudentDetails() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const toast = useToast()
   const [student, setStudent] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
@@ -70,10 +61,12 @@ export default function StudentDetails() {
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
-    { id: 'fees', label: 'Fees' },
+    { id: 'academics', label: 'Academics' },
+    { id: 'grades', label: 'Grades' },
+    { id: 'exams', label: 'Exams' },
     { id: 'attendance', label: 'Attendance' },
-    { id: 'results', label: 'Results' },
-    { id: 'documents', label: 'Documents' },
+    { id: 'homework', label: 'Homework' },
+    { id: 'fees', label: 'Fees' },
   ]
 
   const gradeColor = (grade) => {
@@ -117,9 +110,9 @@ export default function StudentDetails() {
             <h3 className="text-base font-semibold text-ink mb-4">Personal Information</h3>
             <div className="space-y-3">
               <InfoRow label="Full Name" value={student.name} />
+              <InfoRow label="Student ID" value={student.id} />
               <InfoRow label="Date of Birth" value={formatDate(student.dob)} />
-              <InfoRow label="Gender" value={student.gender} />
-              <InfoRow label="Address" value={student.address} />
+              <InfoRow label="Admission Date" value={formatDate(student.admissionDate)} />
             </div>
           </Card>
           <Card>
@@ -130,24 +123,117 @@ export default function StudentDetails() {
               <InfoRow label="Email" value={student.email || '—'} />
             </div>
           </Card>
-          <Card>
-            <h3 className="text-base font-semibold text-ink mb-4">Admission Information</h3>
-            <div className="space-y-3">
-              <InfoRow label="Student ID" value={student.id} />
-              <InfoRow label="Admission Date" value={formatDate(student.admissionDate)} />
-              <InfoRow label="Class" value={`Class ${student.class}`} />
-              <InfoRow label="Section" value={student.section || '—'} />
-              <InfoRow label="Roll No" value={student.rollNo || '—'} />
+          <Card className="sm:col-span-2">
+            <h3 className="text-base font-semibold text-ink mb-4">Academic Summary</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="p-3 rounded-btn bg-surface-app text-center">
+                <p className="text-2xl font-semibold text-ink">87%</p>
+                <p className="text-xs text-ink-secondary mt-1">Average Grade</p>
+              </div>
+              <div className="p-3 rounded-btn bg-surface-app text-center">
+                <p className="text-2xl font-semibold text-ink">92%</p>
+                <p className="text-xs text-ink-secondary mt-1">Attendance</p>
+              </div>
+              <div className="p-3 rounded-btn bg-surface-app text-center">
+                <p className="text-2xl font-semibold text-ink">94%</p>
+                <p className="text-xs text-ink-secondary mt-1">Homework</p>
+              </div>
+              <div className="p-3 rounded-btn bg-surface-app text-center">
+                <p className="text-2xl font-semibold text-success">89%</p>
+                <p className="text-xs text-ink-secondary mt-1">Overall Progress</p>
+              </div>
             </div>
           </Card>
-          <Card>
-            <h3 className="text-base font-semibold text-ink mb-4">Fee Summary</h3>
-            <div className="space-y-3">
-              <InfoRow label="Total Paid" value={formatPKRFull(totalPaid)} valueClass="text-success" />
-              <InfoRow label="Outstanding" value={formatPKRFull(outstanding)} valueClass={outstanding > 0 ? 'text-danger' : 'text-success'} />
-              <InfoRow label="Fee Status" value={<StatusBadge status={student.feeStatus} />} />
-            </div>
-          </Card>
+        </div>
+      )}
+
+      {activeTab === 'academics' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card><div><p className="text-sm text-ink-secondary">Average Grade</p><p className="text-2xl font-semibold text-ink mt-1">87%</p></div></Card>
+          <Card><div><p className="text-sm text-ink-secondary">Attendance</p><p className="text-2xl font-semibold text-ink mt-1">92%</p></div></Card>
+          <Card><div><p className="text-sm text-ink-secondary">Homework</p><p className="text-2xl font-semibold text-ink mt-1">94%</p></div></Card>
+          <Card><div><p className="text-sm text-ink-secondary">Overall Progress</p><p className="text-2xl font-semibold text-success mt-1">89%</p></div></Card>
+        </div>
+      )}
+
+      {activeTab === 'grades' && (
+        <Card padding={false}>
+          <div className="p-5 border-b border-border"><h3 className="text-base font-semibold text-ink">Academic Results — Midterm 2026</h3></div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[400px]">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="table-header">Subject</th>
+                  <th className="table-header">Marks</th>
+                  <th className="table-header">Total</th>
+                  <th className="table-header">Grade</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mockResults.map((r, i) => (
+                  <tr key={i} className="border-b border-border last:border-0">
+                    <td className="table-cell font-medium">{r.subject}</td>
+                    <td className="table-cell">{r.marks}</td>
+                    <td className="table-cell text-ink-secondary">{r.total}</td>
+                    <td className="table-cell"><span className={cn('font-semibold', gradeColor(r.grade))}>{r.grade}</span></td>
+                  </tr>
+                ))}
+                <tr className="bg-surface-app">
+                  <td className="table-cell font-semibold">Total</td>
+                  <td className="table-cell font-semibold">{mockResults.reduce((s, r) => s + r.marks, 0)}</td>
+                  <td className="table-cell font-semibold">700</td>
+                  <td className="table-cell font-semibold text-primary">A</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {activeTab === 'exams' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[
+            { name: 'August Monthly Exam', subject: 'Mathematics', date: '2026-08-25', marks: 91, total: 100, grade: 'A', status: 'Completed' },
+            { name: 'August Monthly Exam', subject: 'Physics', date: '2026-08-27', marks: 85, total: 100, grade: 'A-', status: 'Completed' },
+            { name: 'August Monthly Exam', subject: 'English', date: '2026-08-29', marks: 94, total: 100, grade: 'A+', status: 'Completed' },
+          ].map((exam, i) => (
+            <Card key={i}>
+              <div className="flex items-start justify-between mb-3">
+                <div className="w-10 h-10 rounded-btn bg-primary-light flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-primary" />
+                </div>
+                <StatusBadge status={exam.status} />
+              </div>
+              <h3 className="text-base font-semibold text-ink">{exam.subject}</h3>
+              <p className="text-sm text-ink-secondary mb-3">{exam.name}</p>
+              <div className="space-y-1.5 text-sm">
+                <div className="flex items-center justify-between"><span className="text-ink-muted">Date</span><span className="font-medium text-ink">{formatDate(exam.date)}</span></div>
+                <div className="flex items-center justify-between"><span className="text-ink-muted">Score</span><span className="font-medium text-ink">{exam.marks}/{exam.total}</span></div>
+                <div className="flex items-center justify-between"><span className="text-ink-muted">Grade</span><span className={cn('font-semibold', gradeColor(exam.grade))}>{exam.grade}</span></div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {activeTab === 'homework' && (
+        <div className="space-y-3">
+          {[
+            { title: 'Algebra Worksheet', subject: 'Mathematics', dueDate: '2026-08-25', status: 'Submitted' },
+            { title: 'Numerical Problems', subject: 'Physics', dueDate: '2026-08-24', status: 'Pending' },
+            { title: 'Programming Exercise', subject: 'Computer Science', dueDate: '2026-08-22', status: 'Graded' },
+            { title: 'Essay: My Country', subject: 'English', dueDate: '2026-08-26', status: 'Pending' },
+          ].map((hw, i) => (
+            <Card key={i}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-ink">{hw.title}</p>
+                  <p className="text-xs text-ink-muted mt-1">{hw.subject} • Due {formatDate(hw.dueDate)}</p>
+                </div>
+                <StatusBadge status={hw.status === 'Pending' ? 'Pending' : hw.status === 'Submitted' ? 'Sent' : 'Completed'} />
+              </div>
+            </Card>
+          ))}
         </div>
       )}
 
@@ -256,29 +342,6 @@ export default function StudentDetails() {
         </Card>
       )}
 
-      {activeTab === 'documents' && (
-        <Card padding={false}>
-          <div className="p-5 border-b border-border"><h3 className="text-base font-semibold text-ink">Student Documents</h3></div>
-          <div className="divide-y divide-border">
-            {mockDocuments.map(doc => (
-              <div key={doc.id} className="flex items-center justify-between px-5 py-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-btn bg-surface-app flex items-center justify-center">
-                    <FileText className="w-4 h-4 text-ink-secondary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-ink">{doc.name}</p>
-                    <p className="text-xs text-ink-muted">{doc.type} • {formatDate(doc.date)}</p>
-                  </div>
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => toast.info(`Downloading ${doc.name}...`)}>
-                  <Download className="w-4 h-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
     </div>
   )
 }

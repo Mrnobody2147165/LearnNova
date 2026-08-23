@@ -17,7 +17,7 @@ import { useToast } from '../../../components/ui/Toast'
 import studentService from '../../../services/students'
 import { downloadCSV, formatDate } from '../../../utils/format'
 
-const emptyForm = { name: '', class: '', section: '', guardian: '', phone: '', email: '', address: '', gender: 'Male', dob: '', rollNo: '' }
+const emptyForm = { name: '', studentId: '', class: '', section: '', guardian: '', guardianPhone: '', phone: '', email: '', address: '', gender: 'Male', dob: '', admissionDate: '', rollNo: '' }
 
 export default function Students() {
   const navigate = useNavigate()
@@ -56,7 +56,9 @@ export default function Students() {
   const validate = () => {
     const errs = {}
     if (!form.name) errs.name = 'Name is required'
+    if (!form.studentId) errs.studentId = 'Student ID is required'
     if (!form.class) errs.class = 'Class is required'
+    if (!form.section) errs.section = 'Section is required'
     if (!form.guardian) errs.guardian = 'Guardian name is required'
     if (!form.phone) errs.phone = 'Phone is required'
     if (form.email && !form.email.includes('@')) errs.email = 'Invalid email'
@@ -67,7 +69,7 @@ export default function Students() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!validate()) return
-    const data = { ...form, class: form.class, section: form.section || 'A' }
+    const data = { ...form, class: form.class, section: form.section || 'A', feeStatus: 'Pending', status: 'Active', attendance: '92%', averageGrade: '87%' }
     if (editId) {
       await studentService.update(editId, data)
       setStudents(prev => prev.map(s => s.id === editId ? { ...s, ...data } : s))
@@ -85,7 +87,7 @@ export default function Students() {
 
   const handleEdit = (student) => {
     setEditId(student.id)
-    setForm({ name: student.name, class: student.class, section: student.section || '', guardian: student.guardian, phone: student.phone, email: student.email, address: student.address, gender: student.gender, dob: student.dob, rollNo: student.rollNo })
+    setForm({ name: student.name, studentId: student.id, class: student.class, section: student.section || '', guardian: student.guardian, guardianPhone: student.phone, phone: student.phone, email: student.email, address: student.address, gender: student.gender, dob: student.dob, admissionDate: student.admissionDate || '', rollNo: student.rollNo })
     setModalOpen(true)
   }
 
@@ -162,9 +164,11 @@ export default function Students() {
               <thead>
                 <tr className="border-b border-border">
                   <th className="table-header">Student</th>
+                  <th className="table-header">Student ID</th>
                   <th className="table-header">Class</th>
-                  <th className="table-header">Guardian</th>
-                  <th className="table-header">Phone</th>
+                  <th className="table-header">Section</th>
+                  <th className="table-header">Attendance</th>
+                  <th className="table-header">Avg Grade</th>
                   <th className="table-header">Fee Status</th>
                   <th className="table-header">Status</th>
                   <th className="table-header text-right">Actions</th>
@@ -176,15 +180,14 @@ export default function Students() {
                     <td className="table-cell">
                       <div className="flex items-center gap-2.5">
                         <Avatar name={student.name} size="sm" />
-                        <div>
-                          <p className="font-medium text-ink">{student.name}</p>
-                          <p className="text-xs text-ink-muted">{student.id}</p>
-                        </div>
+                        <p className="font-medium text-ink">{student.name}</p>
                       </div>
                     </td>
+                    <td className="table-cell text-ink-secondary">{student.id}</td>
                     <td className="table-cell">{student.class}</td>
-                    <td className="table-cell">{student.guardian}</td>
-                    <td className="table-cell text-ink-secondary">{student.phone}</td>
+                    <td className="table-cell">{student.section || '—'}</td>
+                    <td className="table-cell text-ink-secondary">{student.attendance || '92%'}</td>
+                    <td className="table-cell text-ink-secondary">{student.averageGrade || '87%'}</td>
                     <td className="table-cell"><StatusBadge status={student.feeStatus} /></td>
                     <td className="table-cell"><StatusBadge status={student.status} /></td>
                     <td className="table-cell">
@@ -224,23 +227,25 @@ export default function Students() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Full Name" value={form.name} onChange={setField('name')} error={errors.name} placeholder="e.g. Ahmed Khan" />
-            <Input label="Roll No" value={form.rollNo} onChange={setField('rollNo')} placeholder="e.g. 25" />
+            <Input label="Student ID" value={form.studentId} onChange={setField('studentId')} error={errors.studentId} placeholder="e.g. STU-2026-00150" />
             <Select label="Class" value={form.class} onChange={setField('class')} error={errors.class}>
               <option value="">Select class</option>
               {classOptions.map(c => <option key={c} value={c}>{`Class ${c}`}</option>)}
             </Select>
-            <Select label="Section" value={form.section} onChange={setField('section')}>
+            <Select label="Section" value={form.section} onChange={setField('section')} error={errors.section}>
               <option value="">Select section</option>
               {sectionOptions.map(s => <option key={s} value={s}>{s}</option>)}
             </Select>
-            <Input label="Guardian Name" value={form.guardian} onChange={setField('guardian')} error={errors.guardian} placeholder="e.g. Imran Khan" />
+            <Input label="Email" type="email" value={form.email} onChange={setField('email')} error={errors.email} placeholder="student@email.com" />
             <Input label="Phone" value={form.phone} onChange={setField('phone')} error={errors.phone} placeholder="+92 300 1234567" />
-            <Input label="Email" type="email" value={form.email} onChange={setField('email')} error={errors.email} placeholder="guardian@email.com" />
+            <Input label="Date of Birth" type="date" value={form.dob} onChange={setField('dob')} />
+            <Input label="Admission Date" type="date" value={form.admissionDate} onChange={setField('admissionDate')} />
+            <Input label="Guardian Name" value={form.guardian} onChange={setField('guardian')} error={errors.guardian} placeholder="e.g. Imran Khan" />
+            <Input label="Guardian Phone" value={form.guardianPhone} onChange={setField('guardianPhone')} placeholder="+92 300 1234567" />
             <Select label="Gender" value={form.gender} onChange={setField('gender')}>
               <option value="Male">Male</option>
               <option value="Female">Female</option>
             </Select>
-            <Input label="Date of Birth" type="date" value={form.dob} onChange={setField('dob')} />
             <Input label="Address" value={form.address} onChange={setField('address')} placeholder="House 24, Gulshan, Karachi" />
           </div>
         </form>

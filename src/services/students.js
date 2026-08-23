@@ -23,10 +23,10 @@ export const studentService = {
   async create(data) {
     await delay()
     const newStudent = {
-      id: 'STU-2026-' + String(150 + studentList.length).padStart(5, '0'),
+      id: data.studentId || 'STU-2026-' + String(150 + studentList.length).padStart(5, '0'),
       ...data,
       feeStatus: data.feeStatus || 'Pending',
-      status: 'Active',
+      status: data.status || 'Active',
     }
     studentList = [newStudent, ...studentList]
     return newStudent

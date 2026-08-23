@@ -20,7 +20,6 @@ export default function Login() {
     if (!email) errs.email = 'Email is required'
     else if (!email.includes('@')) errs.email = 'Please enter a valid email'
     if (!password) errs.password = 'Password is required'
-    else if (password.length < 4) errs.password = 'Password must be at least 4 characters'
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -29,11 +28,15 @@ export default function Login() {
     e.preventDefault()
     if (!validate()) return
     try {
-      await login(email, password)
+      const user = await login(email, password)
       toast.success('Welcome back! Login successful.')
-      navigate('/dashboard')
+      if (user.role === 'admin') {
+        navigate('/dashboard')
+      } else {
+        navigate('/student/dashboard')
+      }
     } catch (err) {
-      toast.error(err.message || 'Login failed')
+      setErrors({ form: err.message })
     }
   }
 
@@ -45,15 +48,20 @@ export default function Login() {
             <GraduationCap className="w-7 h-7 text-white" />
           </div>
           <h1 className="text-2xl font-semibold text-ink">Welcome back</h1>
-          <p className="text-sm text-ink-secondary mt-1">Sign in to your school management account</p>
+          <p className="text-sm text-ink-secondary mt-1">Sign in to Learnify</p>
         </div>
 
         <div className="card p-6">
+          {errors.form && (
+            <div className="mb-4 p-3 rounded-btn bg-danger-bg text-danger text-sm">
+              {errors.form}
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               label="Email"
               type="email"
-              placeholder="admin@school.edu.pk"
+              placeholder="admin@learnify.com"
               icon={Mail}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -105,7 +113,7 @@ export default function Login() {
         </div>
 
         <p className="text-center text-xs text-ink-muted mt-6">
-          Use any valid email and password to try the demo
+          Admin demo: admin@learnify.com / learnify
         </p>
       </div>
     </div>
