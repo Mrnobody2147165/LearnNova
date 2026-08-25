@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, GraduationCap, CalendarCheck,
-  ClipboardList, TrendingUp, CalendarDays, Bell, User, LogOut, X, GraduationCap as Logo
+  ClipboardList, TrendingUp, CalendarDays, Bell, User, LogOut, X, Wallet, GraduationCap as Logo
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { cn } from '../../utils/format'
@@ -13,6 +13,7 @@ const navItems = [
   { to: '/student/exams', label: 'Exams', icon: ClipboardList },
   { to: '/student/attendance', label: 'Attendance', icon: CalendarCheck },
   { to: '/student/homework', label: 'Homework', icon: ClipboardList },
+  { to: '/student/fees', label: 'Fees & Challans', icon: Wallet },
   { to: '/student/progress', label: 'Progress', icon: TrendingUp },
   { to: '/student/schedule', label: 'Schedule', icon: CalendarDays },
   { to: '/student/notifications', label: 'Notifications', icon: Bell },

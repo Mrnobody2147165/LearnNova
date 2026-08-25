@@ -1,76 +1,75 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Bell, CheckCheck, Info, AlertCircle, CheckCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Bell, Check, ArrowRight } from 'lucide-react'
 import PageHeader from '../../../components/ui/PageHeader'
 import Card from '../../../components/ui/Card'
-import { studentNotifications } from '../../../data/academics'
-import { cn } from '../../../utils/format'
+import Button from '../../../components/ui/Button'
+import EmptyState from '../../../components/ui/EmptyState'
+import LoadingState from '../../../components/ui/LoadingState'
+import notificationService from '../../../services/notifications'
 
 export default function StudentNotifications() {
-  const navigate = useNavigate()
-  const [notifications, setNotifications] = useState(studentNotifications)
+  const [notifications, setNotifications] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const unreadCount = notifications.filter(n => !n.read).length
+  useEffect(() => {
+    notificationService.getAll().then(data => {
+      setNotifications(data || [])
+      setLoading(false)
+    })
+  }, [])
 
-  const markAllRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })))
+  const markAsRead = async (id) => {
+    await notificationService.markAsRead(id)
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
   }
 
-  const handleClick = (notif) => {
-    setNotifications(notifications.map(n => n.id === notif.id ? { ...n, read: true } : n))
-    if (notif.link) navigate(notif.link)
+  const markAllRead = async () => {
+    await notificationService.markAllAsRead()
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
   }
 
-  const iconConfig = {
-    info: { icon: Info, bg: 'bg-info-bg', text: 'text-info' },
-    warning: { icon: AlertCircle, bg: 'bg-warning-bg', text: 'text-warning' },
-    success: { icon: CheckCircle, bg: 'bg-success-bg', text: 'text-success' },
-  }
+  if (loading) return <LoadingState />
 
   return (
     <div>
       <PageHeader
         title="Notifications"
-        subtitle={unreadCount > 0 ? `You have ${unreadCount} unread notifications` : 'All caught up!'}
+        subtitle="Stay updated with announcements, homework, and exam alerts"
         actions={
-          unreadCount > 0 ? (
-            <button onClick={markAllRead} className="flex items-center gap-1.5 text-sm text-primary hover:underline">
-              <CheckCheck className="w-4 h-4" /> Mark all read
-            </button>
-          ) : null
+          notifications.some(n => !n.read) && (
+            <Button variant="secondary" size="sm" onClick={markAllRead}>
+              <Check className="w-4 h-4" />
+              Mark all as read
+            </Button>
+          )
         }
       />
 
-      <Card padding={false}>
-        <div className="divide-y divide-border">
-          {notifications.map(notif => {
-            const config = iconConfig[notif.type] || iconConfig.info
-            const Icon = config.icon
-            return (
-              <div
-                key={notif.id}
-                className={cn(
-                  'flex gap-3 px-5 py-4 hover:bg-surface-hover cursor-pointer transition-colors',
-                  !notif.read && 'bg-primary-50/30'
-                )}
-                onClick={() => handleClick(notif)}
-              >
-                <div className={cn('w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0', config.bg)}>
-                  <Icon className={cn('w-4 h-4', config.text)} />
-                </div>
-                <div className="min-w-0 flex-1">
+      {notifications.length === 0 ? (
+        <EmptyState icon={Bell} title="No notifications" description="You're all caught up with your updates." />
+      ) : (
+        <div className="space-y-3">
+          {notifications.map(n => (
+            <Card key={n.id} className={n.read ? 'opacity-75' : 'border-l-4 border-l-primary'}>
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-ink truncate">{notif.title}</p>
-                    {!notif.read && <span className="w-2 h-2 bg-primary rounded-full flex-shrink-0" />}
+                    <h3 className="text-sm font-semibold text-ink">{n.title}</h3>
+                    {!n.read && <span className="w-2 h-2 rounded-full bg-primary" />}
                   </div>
-                  <p className="text-sm text-ink-secondary mt-0.5">{notif.message}</p>
-                  <p className="text-xs text-ink-muted mt-1">{notif.time}</p>
+                  <p className="text-sm text-ink-secondary">{n.message}</p>
+                  <span className="text-xs text-ink-muted block">{n.time}</span>
                 </div>
+                {!n.read && (
+                  <Button variant="ghost" size="sm" onClick={() => markAsRead(n.id)}>
+                    Mark Read
+                  </Button>
+                )}
               </div>
-            )
-          })}
+            </Card>
+          ))}
         </div>
-      </Card>
+      )}
     </div>
   )
 }

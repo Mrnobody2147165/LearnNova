@@ -1,15 +1,17 @@
-export const formatPKR = (amount) => {
-  if (amount >= 1000000) {
-    return `PKR ${(amount / 1000000).toFixed(1)}M`
+export const formatPKR = (amount = 0) => {
+  const num = Number(amount) || 0
+  if (num >= 1000000) {
+    return `PKR ${(num / 1000000).toFixed(1)}M`
   }
-  if (amount >= 1000) {
-    return `PKR ${(amount / 1000).toFixed(1)}K`
+  if (num >= 1000) {
+    return `PKR ${(num / 1000).toFixed(1)}K`
   }
-  return `PKR ${amount.toLocaleString('en-PK')}`
+  return `PKR ${num.toLocaleString('en-PK')}`
 }
 
-export const formatPKRFull = (amount) => {
-  return `PKR ${amount.toLocaleString('en-PK')}`
+export const formatPKRFull = (amount = 0) => {
+  const num = Number(amount) || 0
+  return `PKR ${num.toLocaleString('en-PK')}`
 }
 
 export const formatDate = (dateStr) => {

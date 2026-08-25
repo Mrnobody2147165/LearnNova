@@ -10,7 +10,7 @@ import Tabs from '../../../components/ui/Tabs'
 import LoadingState from '../../../components/ui/LoadingState'
 import EmptyState from '../../../components/ui/EmptyState'
 import studentService from '../../../services/students'
-import { challans as mockChallans } from '../../../data/challans'
+import challanService from '../../../services/challans'
 import { formatPKRFull, formatDate, cn } from '../../../utils/format'
 
 const mockResults = [
@@ -40,12 +40,17 @@ export default function StudentDetails() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [student, setStudent] = useState(null)
+  const [challans, setChallans] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
 
   useEffect(() => {
-    studentService.getById(id).then(data => {
-      setStudent(data)
+    Promise.all([
+      studentService.getById(id),
+      challanService.getAll({ search: id }),
+    ]).then(([sData, cData]) => {
+      setStudent(sData)
+      setChallans(cData || [])
       setLoading(false)
     })
   }, [id])
@@ -53,11 +58,11 @@ export default function StudentDetails() {
   if (loading) return <LoadingState />
   if (!student) return <EmptyState title="Student not found" description="The student you're looking for doesn't exist." action={<Button onClick={() => navigate('/students')}>Back to Students</Button>} />
 
-  const studentChallans = mockChallans.filter(c => c.studentId === student.id)
+  const studentChallans = challans.length > 0 ? challans : (student.challans || [])
   const paidChallans = studentChallans.filter(c => c.status === 'Paid')
   const pendingChallans = studentChallans.filter(c => c.status === 'Pending' || c.status === 'Overdue')
-  const outstanding = pendingChallans.reduce((sum, c) => sum + c.total, 0)
-  const totalPaid = paidChallans.reduce((sum, c) => sum + c.total, 0)
+  const outstanding = pendingChallans.reduce((sum, c) => sum + (c.total || c.total_amount || 0), 0)
+  const totalPaid = paidChallans.reduce((sum, c) => sum + (c.total || c.total_amount || 0), 0)
 
   const tabs = [
     { id: 'overview', label: 'Overview' },

@@ -39,10 +39,13 @@ export default function Homework() {
     setLoading(false)
   }
 
-  const filtered = homeworkList.filter(h =>
-    h.title.toLowerCase().includes(search.toLowerCase()) ||
-    h.subject.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = (homeworkList || []).filter(h => {
+    const hTitle = String(h?.title || '').toLowerCase()
+    const hSub = String(h?.subject || '').toLowerCase()
+    const q = String(search || '').toLowerCase()
+
+    return !q || hTitle.includes(q) || hSub.includes(q)
+  })
 
   const openAdd = () => {
     setEditHw(null)

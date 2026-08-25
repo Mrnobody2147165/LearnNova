@@ -12,11 +12,13 @@ import EmptyState from '../../../components/ui/EmptyState'
 import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import { useToast } from '../../../components/ui/Toast'
 import subjectService from '../../../services/subjects'
-import { teachers, classes } from '../../../data/students'
+import studentService from '../../../services/students'
 
 export default function Subjects() {
   const toast = useToast()
   const [subjects, setSubjects] = useState([])
+  const [teachers, setTeachers] = useState([])
+  const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
@@ -31,15 +33,24 @@ export default function Subjects() {
 
   const loadSubjects = async () => {
     setLoading(true)
-    const data = await subjectService.getAll()
-    setSubjects(data)
+    const [data, tList, cList] = await Promise.all([
+      subjectService.getAll(),
+      studentService.getTeachers(),
+      studentService.getClasses(),
+    ])
+    setSubjects(data || [])
+    setTeachers(tList || [])
+    setClasses(cList || [])
     setLoading(false)
   }
 
-  const filtered = subjects.filter(s =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.code.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = (subjects || []).filter(s => {
+    const sName = String(s?.name || '').toLowerCase()
+    const sCode = String(s?.code || '').toLowerCase()
+    const q = String(search || '').toLowerCase()
+
+    return !q || sName.includes(q) || sCode.includes(q)
+  })
 
   const openAdd = () => {
     setEditSubject(null)

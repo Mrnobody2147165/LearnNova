@@ -13,7 +13,6 @@ import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import { useToast } from '../../../components/ui/Toast'
 import examService from '../../../services/exams'
 import subjectService from '../../../services/subjects'
-import { subjects as subjectData } from '../../../data/academics'
 import { formatDate } from '../../../utils/format'
 
 export default function Exams() {
@@ -35,17 +34,20 @@ export default function Exams() {
 
   const loadData = async () => {
     setLoading(true)
-    const [examData, subjData] = await Promise.all([examService.getAll(), subjectService.getAll()])
-    setExams(examData)
-    setSubjects(subjData)
+    const [examData, subjData] = await Promise.all([examService.getExams(), subjectService.getAll()])
+    setExams(examData || [])
+    setSubjects(subjData || [])
     setLoading(false)
   }
 
-  const filtered = exams.filter(e =>
-    e.name.toLowerCase().includes(search.toLowerCase()) ||
-    e.subject.toLowerCase().includes(search.toLowerCase()) ||
-    e.class.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = (exams || []).filter(e => {
+    const eName = String(e?.name || '').toLowerCase()
+    const eSub = String(e?.subject || '').toLowerCase()
+    const eClass = String(e?.class || '').toLowerCase()
+    const q = String(search || '').toLowerCase()
+
+    return !q || eName.includes(q) || eSub.includes(q) || eClass.includes(q)
+  })
 
   const openAdd = () => {
     setEditExam(null)

@@ -1,128 +1,109 @@
 import { useState, useEffect } from 'react'
-import { Clock, Calendar, BookOpen } from 'lucide-react'
+import { Calendar, Clock, Award } from 'lucide-react'
 import PageHeader from '../../../components/ui/PageHeader'
 import Card from '../../../components/ui/Card'
 import Tabs from '../../../components/ui/Tabs'
 import StatusBadge from '../../../components/ui/StatusBadge'
 import LoadingState from '../../../components/ui/LoadingState'
 import EmptyState from '../../../components/ui/EmptyState'
-import { exams, grades } from '../../../data/academics'
-import { formatDate, formatDateShort } from '../../../utils/format'
+import examService from '../../../services/exams'
+import { useAuthStore } from '../../../stores/authStore'
+import { formatDate } from '../../../utils/format'
 
 export default function StudentExams() {
+  const { user } = useAuthStore()
+  const [tab, setTab] = useState('upcoming')
   const [examList, setExamList] = useState([])
+  const [resultsList, setResultsList] = useState([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('upcoming')
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setExamList(exams)
+    const studentId = user?.studentId || user?.id
+    const studentClass = user?.class
+
+    Promise.all([
+      examService.getExams({ classFilter: studentClass }),
+      examService.getStudentGrades(studentId),
+    ]).then(([examsData, gradesData]) => {
+      setExamList(examsData || [])
+      setResultsList(gradesData || [])
       setLoading(false)
-    }, 200)
-    return () => clearTimeout(timer)
-  }, [])
+    })
+  }, [user])
 
   if (loading) return <LoadingState />
 
   const upcoming = examList.filter(e => e.status === 'Scheduled')
-  const completed = examList.filter(e => e.status === 'Completed')
-
-  const getExamGrade = (examId) => {
-    const grade = grades.find(g => g.examId === examId && g.studentId === 'STU-2026-00124')
-    return grade
-  }
+  const completed = examList.filter(e => e.status === 'Completed' || e.resultsPublished)
 
   return (
     <div>
-      <PageHeader title="My Exams" subtitle="View upcoming and completed exams" />
+      <PageHeader title="Examinations" subtitle="View upcoming schedules and published results" />
 
       <Tabs
         tabs={[
-          { id: 'upcoming', label: 'Upcoming' },
-          { id: 'completed', label: 'Completed' },
+          { id: 'upcoming', label: `Upcoming (${upcoming.length})` },
+          { id: 'results', label: `Results (${resultsList.length})` },
         ]}
-        activeTab={activeTab}
-        onChange={setActiveTab}
+        activeTab={tab}
+        onChange={setTab}
         className="mb-6"
       />
 
-      {activeTab === 'upcoming' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {upcoming.length === 0 ? (
-            <div className="col-span-full">
-              <EmptyState icon={Calendar} title="No upcoming exams" description="You're all caught up!" />
-            </div>
-          ) : upcoming.map(exam => (
+      {tab === 'upcoming' && (
+        <div className="space-y-4">
+          {upcoming.map(exam => (
             <Card key={exam.id}>
-              <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 rounded-btn bg-primary-light flex items-center justify-center">
-                  <BookOpen className="w-5 h-5 text-primary" />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-semibold text-ink">{exam.subject}</h3>
+                    <StatusBadge status={exam.status} />
+                  </div>
+                  <p className="text-sm text-ink-secondary">{exam.name} • {exam.description || 'All chapters'}</p>
                 </div>
-                <StatusBadge status="Pending" />
-              </div>
-              <h3 className="text-base font-semibold text-ink">{exam.subject}</h3>
-              <p className="text-sm text-ink-secondary mb-3">{exam.name}</p>
-              <div className="space-y-1.5 text-sm">
-                <div className="flex items-center gap-2 text-ink-secondary">
-                  <Calendar className="w-4 h-4 text-ink-muted" /> {formatDate(exam.date)}
+                <div className="flex items-center gap-4 text-sm text-ink-secondary">
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4 text-ink-muted" />
+                    <span>{formatDate(exam.date)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-ink-muted" />
+                    <span>{exam.startTime || '10:00 AM'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 font-medium text-ink">
+                    <Award className="w-4 h-4 text-primary" />
+                    <span>{exam.totalMarks} Marks</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-ink-secondary">
-                  <Clock className="w-4 h-4 text-ink-muted" /> {exam.startTime}
-                </div>
-                <p className="text-ink-secondary">{exam.description}</p>
-                <p className="text-ink-muted text-xs">Total Marks: {exam.totalMarks}</p>
               </div>
             </Card>
           ))}
+          {upcoming.length === 0 && (
+            <EmptyState icon={Calendar} title="No exams scheduled" description="Scheduled examinations for your class will be shown here." />
+          )}
         </div>
       )}
 
-      {activeTab === 'completed' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {completed.length === 0 ? (
-            <div className="col-span-full">
-              <EmptyState icon={Calendar} title="No completed exams" description="Your completed exams will appear here" />
-            </div>
-          ) : completed.map(exam => {
-            const grade = getExamGrade(exam.id)
-            const classAvg = grade ? Math.round(grade.marks * 0.9) : null
-            return (
-              <Card key={exam.id}>
-                <div className="flex items-start justify-between mb-3">
-                  <div className="w-10 h-10 rounded-btn bg-success-bg flex items-center justify-center">
-                    <BookOpen className="w-5 h-5 text-success" />
-                  </div>
-                  <StatusBadge status="Completed" />
+      {tab === 'results' && (
+        <div className="space-y-4">
+          {resultsList.map(result => (
+            <Card key={result.id || result.subject}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-semibold text-ink">{result.subject}</h3>
+                  <p className="text-xs text-ink-muted mt-0.5">Overall: {result.overall}%</p>
                 </div>
-                <h3 className="text-base font-semibold text-ink">{exam.subject}</h3>
-                <p className="text-sm text-ink-secondary mb-3">{formatDateShort(exam.date)}</p>
-
-                {grade ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between p-2.5 rounded-btn bg-surface-app">
-                      <span className="text-sm text-ink-secondary">Score</span>
-                      <span className="text-sm font-semibold text-ink">{grade.marks}/{grade.totalMarks}</span>
-                    </div>
-                    <div className="flex items-center justify-between p-2.5 rounded-btn bg-surface-app">
-                      <span className="text-sm text-ink-secondary">Grade</span>
-                      <span className="text-sm font-semibold text-success">{grade.grade}</span>
-                    </div>
-                    <div className="flex items-center justify-between p-2.5 rounded-btn bg-surface-app">
-                      <span className="text-sm text-ink-secondary">Class Average</span>
-                      <span className="text-sm font-semibold text-ink">{classAvg}</span>
-                    </div>
-                    {classAvg && (
-                      <p className="text-xs text-success mt-2">
-                        You scored {grade.marks - classAvg > 0 ? `${grade.marks - classAvg} above` : `${classAvg - grade.marks} below`} the class average
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm text-ink-muted">Results not yet published</p>
-                )}
-              </Card>
-            )
-          })}
+                <div className="text-right">
+                  <span className="text-lg font-bold text-primary">{result.overall}%</span>
+                  <p className="text-xs font-semibold text-success">Grade: {result.grade || 'A'}</p>
+                </div>
+              </div>
+            </Card>
+          ))}
+          {resultsList.length === 0 && (
+            <EmptyState icon={Award} title="No results published yet" description="Your exam evaluation results will appear here once marked by teachers." />
+          )}
         </div>
       )}
     </div>

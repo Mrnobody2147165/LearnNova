@@ -1,28 +1,52 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Bell, Menu, Check, CheckCheck } from 'lucide-react'
+import { Search, Bell, Menu, Check, CheckCheck, LogOut, User as UserIcon } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useNotificationStore } from '../../stores/notificationStore'
 import { useSchoolStore } from '../../stores/schoolStore'
-import { students as mockStudents, teachers as mockTeachers, classes as mockClasses } from '../../data/students'
-import { challans as mockChallans } from '../../data/challans'
+import studentService from '../../services/students'
+import challanService from '../../services/challans'
 import { cn, initials } from '../../utils/format'
 import Avatar from '../ui/Avatar'
 
 export default function Topbar({ onMenuClick }) {
   const navigate = useNavigate()
-  const { user } = useAuthStore()
+  const { user, logout } = useAuthStore()
   const { school } = useSchoolStore()
   const { notifications, markAsRead, markAllRead } = useNotificationStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [students, setStudents] = useState([])
+  const [teachers, setTeachers] = useState([])
+  const [classes, setClasses] = useState([])
+  const [challans, setChallans] = useState([])
   const searchRef = useRef(null)
   const notifRef = useRef(null)
   const profileRef = useRef(null)
 
   const unreadCount = notifications.filter(n => !n.read).length
+
+  const handleLogout = async () => {
+    setProfileOpen(false)
+    await logout()
+    navigate('/login')
+  }
+
+  useEffect(() => {
+    Promise.all([
+      studentService.getAll(),
+      studentService.getTeachers(),
+      studentService.getClasses(),
+      challanService.getAll(),
+    ]).then(([sData, tData, cData, chData]) => {
+      setStudents(sData || [])
+      setTeachers(tData || [])
+      setClasses(cData || [])
+      setChallans(chData || [])
+    })
+  }, [])
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -35,22 +59,22 @@ export default function Topbar({ onMenuClick }) {
   }, [])
 
   const searchResults = searchQuery.length > 1 ? [
-    ...mockStudents
-      .filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.id.toLowerCase().includes(searchQuery.toLowerCase()))
+    ...students
+      .filter(s => s.name?.toLowerCase().includes(searchQuery.toLowerCase()) || s.id?.toLowerCase().includes(searchQuery.toLowerCase()))
       .slice(0, 4)
       .map(s => ({ type: 'Student', label: s.name, sub: `${s.id} • Class ${s.class}`, link: `/students/${s.id}` })),
-    ...mockTeachers
-      .filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    ...teachers
+      .filter(t => t.name?.toLowerCase().includes(searchQuery.toLowerCase()))
       .slice(0, 3)
       .map(t => ({ type: 'Teacher', label: t.name, sub: t.id, link: '/teachers' })),
-    ...mockClasses
-      .filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    ...classes
+      .filter(c => c.name?.toLowerCase().includes(searchQuery.toLowerCase()))
       .slice(0, 3)
-      .map(c => ({ type: 'Class', label: c.name, sub: `${c.students} students`, link: '/classes' })),
-    ...mockChallans
-      .filter(c => c.challanNo.toLowerCase().includes(searchQuery.toLowerCase()) || c.studentName.toLowerCase().includes(searchQuery.toLowerCase()))
+      .map(c => ({ type: 'Class', label: c.name, sub: `${c.students || 0} students`, link: '/classes' })),
+    ...challans
+      .filter(ch => ch.challanNo?.toLowerCase().includes(searchQuery.toLowerCase()) || ch.studentName?.toLowerCase().includes(searchQuery.toLowerCase()))
       .slice(0, 3)
-      .map(c => ({ type: 'Challan', label: c.challanNo, sub: c.studentName, link: `/challans/${c.id}` })),
+      .map(ch => ({ type: 'Challan', label: ch.challanNo, sub: `${ch.studentName} • ${ch.month}`, link: `/challans/${ch.id}` })),
   ] : []
 
   const handleSearchClick = (result) => {
@@ -173,7 +197,12 @@ export default function Topbar({ onMenuClick }) {
             </div>
           </button>
           {profileOpen && (
-            <div className="absolute top-full right-0 mt-1 w-48 bg-white rounded-card shadow-dropdown border border-border py-1 z-50">
+            <div className="absolute top-full right-0 mt-1 w-52 bg-white rounded-card shadow-dropdown border border-border py-1 z-50">
+              <div className="px-3 py-2 border-b border-border mb-1">
+                <p className="text-sm font-semibold text-ink truncate">{user?.name || 'User'}</p>
+                <p className="text-xs text-ink-muted capitalize">{user?.role || 'student'} {user?.class ? `• Class ${user.class}` : ''}</p>
+              </div>
+
               {user?.role === 'admin' ? (
                 <>
                   <button
@@ -198,11 +227,22 @@ export default function Topbar({ onMenuClick }) {
               ) : (
                 <button
                   onClick={() => { setProfileOpen(false); navigate('/student/profile') }}
-                  className="w-full px-3 py-2 text-sm text-left text-ink-secondary hover:bg-surface-hover hover:text-ink transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-ink-secondary hover:bg-surface-hover hover:text-ink transition-colors"
                 >
+                  <UserIcon className="w-4 h-4 text-ink-muted" />
                   My Profile
                 </button>
               )}
+
+              <div className="border-t border-border mt-1 pt-1">
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-danger hover:bg-danger-light transition-colors font-medium"
+                >
+                  <LogOut className="w-4 h-4 text-danger" />
+                  Log Out
+                </button>
+              </div>
             </div>
           )}
         </div>

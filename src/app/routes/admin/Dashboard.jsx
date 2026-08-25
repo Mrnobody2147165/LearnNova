@@ -9,32 +9,82 @@ import StatusBadge from '../../../components/ui/StatusBadge'
 import Avatar from '../../../components/ui/Avatar'
 import Button from '../../../components/ui/Button'
 import { useAuthStore } from '../../../stores/authStore'
-import { dashboardStats, recentPayments, recentAdmissions } from '../../../data/dashboard'
-import { collectionChart } from '../../../data/payments'
-import { exams, homework as homeworkData } from '../../../data/academics'
+import dashboardService from '../../../services/dashboard'
+import examService from '../../../services/exams'
+import homeworkService from '../../../services/homework'
 import { formatPKR, formatPKRFull, formatDate, formatDateShort } from '../../../utils/format'
 
 export default function Dashboard() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const [stats] = useState(dashboardStats)
-  const [chartData] = useState(collectionChart)
+  const [metrics, setMetrics] = useState({
+    totalStudents: 1842,
+    activeStudents: 1798,
+    newStudents: 128,
+    totalTeachers: 8,
+    totalCollected: 15700000,
+    totalOutstanding: 2700000,
+    collectionRate: 85.3,
+    attendance: { presentPct: 91.4, absentPct: 6.2, latePct: 2.4 },
+  })
+  const [chartData, setChartData] = useState([])
+  const [payments, setPayments] = useState([])
+  const [admissions, setAdmissions] = useState([])
+  const [upcomingExams, setUpcomingExams] = useState([])
+  const [activeHomework, setActiveHomework] = useState([])
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
   const userName = user?.name?.split(' ')[0] || 'Admin'
 
-  const statIcons = [Users, GraduationCap, Wallet, AlertCircle]
-  const statLabels = ['Total Students', 'Teachers', 'Fee Collected', 'Outstanding Fees']
+  useEffect(() => {
+    // 1. Dashboard aggregate metrics
+    dashboardService.getStats().then(stats => {
+      if (stats) setMetrics(stats)
+    })
 
-  const upcomingExams = exams.filter(e => e.status === 'Scheduled').slice(0, 3)
-  const activeHomework = homeworkData.filter(h => h.status === 'Active').slice(0, 4)
+    // 2. Monthly collection chart
+    dashboardService.getMonthlyCollectionChart().then(chart => {
+      if (chart && chart.length > 0) setChartData(chart)
+    })
+
+    // 3. Recent Admissions
+    dashboardService.getRecentAdmissions(4).then(adm => {
+      if (adm && adm.length > 0) setAdmissions(adm)
+    })
+
+    // 4. Recent Payments
+    dashboardService.getRecentPayments(5).then(pmts => {
+      if (pmts && pmts.length > 0) setPayments(pmts)
+    })
+
+    // 5. Upcoming Exams
+    examService.getExams().then(exList => {
+      if (exList) {
+        setUpcomingExams(exList.filter(e => e.status === 'Scheduled').slice(0, 3))
+      }
+    })
+
+    // 6. Active Homework
+    homeworkService.getHomeworkList().then(hwList => {
+      if (hwList) {
+        setActiveHomework(hwList.filter(h => h.status === 'Active').slice(0, 4))
+      }
+    })
+  }, [])
+
+  const statCards = [
+    { label: 'Total Students', value: metrics.totalStudents.toLocaleString(), change: '+8.2%', trend: 'up', icon: Users },
+    { label: 'Teachers', value: metrics.totalTeachers.toLocaleString(), change: '+2', trend: 'up', icon: GraduationCap },
+    { label: 'Fee Collected', value: formatPKR(metrics.totalCollected), change: '+12.4%', trend: 'up', icon: Wallet },
+    { label: 'Outstanding Fees', value: formatPKR(metrics.totalOutstanding), change: '-4.1%', trend: 'down', icon: AlertCircle },
+  ]
 
   const attentionItems = [
-    { id: 'ATT-1', text: '213 students have outstanding fees', action: 'View Students', link: '/students?feeStatus=Pending' },
-    { id: 'ATT-2', text: '34 students have attendance below 75%', action: 'View Attendance', link: '/academics/attendance' },
-    { id: 'ATT-3', text: '18 homework submissions need grading', action: 'Review', link: '/academics/homework' },
-    { id: 'ATT-4', text: '7 exams need results published', action: 'Publish', link: '/academics/grades' },
+    { id: 'ATT-1', text: 'Unpaid challans need collection follow-up', action: 'View Students', link: '/students?feeStatus=Pending' },
+    { id: 'ATT-2', text: 'Monthly fee invoices ready for dispatch', action: 'View Challans', link: '/challans' },
+    { id: 'ATT-3', text: 'Homework submissions awaiting review', action: 'Review', link: '/academics/homework' },
+    { id: 'ATT-4', text: 'Scheduled exams pending result entry', action: 'Enter Grades', link: '/academics/grades' },
   ]
 
   return (
@@ -52,14 +102,14 @@ export default function Dashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {stats.map((stat, i) => (
+        {statCards.map((stat) => (
           <StatCard
             key={stat.label}
             label={stat.label}
             value={stat.value}
             change={stat.change}
             trend={stat.trend}
-            icon={statIcons[i]}
+            icon={stat.icon}
           />
         ))}
       </div>
@@ -72,15 +122,15 @@ export default function Dashboard() {
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3 rounded-btn bg-surface-app">
               <span className="text-sm text-ink-secondary">Total Students</span>
-              <span className="text-lg font-semibold text-ink">1,842</span>
+              <span className="text-lg font-semibold text-ink">{metrics.totalStudents.toLocaleString()}</span>
             </div>
             <div className="flex items-center justify-between p-3 rounded-btn bg-surface-app">
               <span className="text-sm text-ink-secondary">New Students</span>
-              <span className="text-lg font-semibold text-success">+128</span>
+              <span className="text-lg font-semibold text-success">+{metrics.newStudents}</span>
             </div>
             <div className="flex items-center justify-between p-3 rounded-btn bg-surface-app">
               <span className="text-sm text-ink-secondary">Active Students</span>
-              <span className="text-lg font-semibold text-ink">1,798</span>
+              <span className="text-lg font-semibold text-ink">{metrics.activeStudents.toLocaleString()}</span>
             </div>
           </div>
         </Card>
@@ -90,7 +140,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-base font-semibold text-ink">Fee Collection</h3>
-              <p className="text-sm text-ink-secondary">Monthly collection vs target</p>
+              <p className="text-sm text-ink-secondary">Monthly collection vs target (Rate: {metrics.collectionRate}%)</p>
             </div>
             <Button variant="ghost" size="sm" onClick={() => navigate('/reports')}>
               View Reports
@@ -128,7 +178,7 @@ export default function Dashboard() {
         {/* Attendance */}
         <Card>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold text-ink">Attendance</h3>
+            <h3 className="text-base font-semibold text-ink">Attendance Summary</h3>
             <Button variant="ghost" size="sm" onClick={() => navigate('/academics/attendance')}>
               View
               <ArrowRight className="w-3.5 h-3.5" />
@@ -138,28 +188,28 @@ export default function Dashboard() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-sm text-ink-secondary">Present</span>
-                <span className="text-sm font-semibold text-success">91.4%</span>
+                <span className="text-sm font-semibold text-success">{metrics.attendance.presentPct}%</span>
               </div>
               <div className="h-2 bg-surface-app rounded-full overflow-hidden">
-                <div className="h-full bg-success rounded-full" style={{ width: '91.4%' }} />
+                <div className="h-full bg-success rounded-full" style={{ width: `${metrics.attendance.presentPct}%` }} />
               </div>
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-sm text-ink-secondary">Absent</span>
-                <span className="text-sm font-semibold text-danger">6.2%</span>
+                <span className="text-sm font-semibold text-danger">{metrics.attendance.absentPct}%</span>
               </div>
               <div className="h-2 bg-surface-app rounded-full overflow-hidden">
-                <div className="h-full bg-danger rounded-full" style={{ width: '6.2%' }} />
+                <div className="h-full bg-danger rounded-full" style={{ width: `${metrics.attendance.absentPct}%` }} />
               </div>
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-sm text-ink-secondary">Late</span>
-                <span className="text-sm font-semibold text-warning">2.4%</span>
+                <span className="text-sm font-semibold text-warning">{metrics.attendance.latePct}%</span>
               </div>
               <div className="h-2 bg-surface-app rounded-full overflow-hidden">
-                <div className="h-full bg-warning rounded-full" style={{ width: '2.4%' }} />
+                <div className="h-full bg-warning rounded-full" style={{ width: `${metrics.attendance.latePct}%` }} />
               </div>
             </div>
           </div>
@@ -237,7 +287,7 @@ export default function Dashboard() {
             <h3 className="text-base font-semibold text-ink">Recent Admissions</h3>
           </div>
           <div className="space-y-3">
-            {recentAdmissions.map(student => (
+            {admissions.map(student => (
               <div
                 key={student.id}
                 className="flex items-center gap-3 p-2 rounded-btn hover:bg-surface-hover cursor-pointer"
@@ -275,7 +325,7 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {recentPayments.map(payment => (
+              {payments.map(payment => (
                 <tr key={payment.id} className="border-b border-border last:border-0 hover:bg-surface-hover">
                   <td className="table-cell">
                     <div className="flex items-center gap-2">

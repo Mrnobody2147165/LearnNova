@@ -46,6 +46,7 @@ const StudentExams = lazy(() => import('./routes/student/StudentExams'))
 const StudentAttendance = lazy(() => import('./routes/student/StudentAttendance'))
 const StudentHomework = lazy(() => import('./routes/student/StudentHomework'))
 const StudentHomeworkDetails = lazy(() => import('./routes/student/StudentHomeworkDetails'))
+const StudentFees = lazy(() => import('./routes/student/StudentFees'))
 const StudentProgress = lazy(() => import('./routes/student/StudentProgress'))
 const StudentSchedule = lazy(() => import('./routes/student/StudentSchedule'))
 const StudentNotifications = lazy(() => import('./routes/student/StudentNotifications'))
@@ -76,6 +77,14 @@ function PageLoader() {
   )
 }
 
+function FeeRedirectHandler() {
+  const { user } = useAuthStore()
+  if (user?.role === 'student') {
+    return <Navigate to="/student/fees" replace />
+  }
+  return <Navigate to="/fees" replace />
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -86,6 +95,9 @@ export default function App() {
           <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
           <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
           <Route path="/onboarding" element={<ProtectedRoute><SchoolSetup /></ProtectedRoute>} />
+
+          {/* Smart fee entry point */}
+          <Route path="/fee" element={<ProtectedRoute><FeeRedirectHandler /></ProtectedRoute>} />
 
           {/* Admin routes */}
           <Route element={<ProtectedRoute role="admin"><AppLayout /></ProtectedRoute>}>
@@ -115,7 +127,7 @@ export default function App() {
           </Route>
 
           {/* Student routes */}
-          <Route element={<ProtectedRoute role="student"><StudentLayout /></ProtectedRoute>}>
+          <Route element={<ProtectedRoute><StudentLayout /></ProtectedRoute>}>
             <Route path="/student/dashboard" element={<StudentDashboard />} />
             <Route path="/student/subjects" element={<StudentSubjects />} />
             <Route path="/student/subjects/:id" element={<StudentSubjectDetails />} />
@@ -124,14 +136,17 @@ export default function App() {
             <Route path="/student/attendance" element={<StudentAttendance />} />
             <Route path="/student/homework" element={<StudentHomework />} />
             <Route path="/student/homework/:id" element={<StudentHomeworkDetails />} />
+            <Route path="/student/fees" element={<StudentFees />} />
             <Route path="/student/progress" element={<StudentProgress />} />
             <Route path="/student/schedule" element={<StudentSchedule />} />
             <Route path="/student/notifications" element={<StudentNotifications />} />
             <Route path="/student/profile" element={<StudentProfile />} />
           </Route>
 
-          {/* Legacy redirect */}
+          {/* Legacy & smart redirects */}
           <Route path="/student" element={<Navigate to="/student/dashboard" replace />} />
+          <Route path="/student/challans" element={<Navigate to="/student/fees" replace />} />
+          <Route path="/student/payments" element={<Navigate to="/student/fees" replace />} />
 
           {/* Default redirect */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

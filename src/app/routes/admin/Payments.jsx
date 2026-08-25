@@ -28,16 +28,23 @@ export default function Payments() {
 
   useEffect(() => {
     Promise.all([paymentService.getAll(), paymentService.getStats()]).then(([data, st]) => {
-      setPayments(data)
+      setPayments(data || [])
       setStats(st)
+      setLoading(false)
+    }).catch(err => {
+      console.error('Error loading payments:', err)
       setLoading(false)
     })
   }, [])
 
-  const filtered = payments.filter(p => {
-    const matchSearch = !search || p.studentName.toLowerCase().includes(search.toLowerCase()) || p.transactionId.toLowerCase().includes(search.toLowerCase())
-    const matchStatus = statusFilter === 'all' || p.status === statusFilter
-    const matchMethod = methodFilter === 'all' || p.method === methodFilter
+  const filtered = (payments || []).filter(p => {
+    const sName = String(p?.studentName || '').toLowerCase()
+    const tId = String(p?.transactionId || p?.id || '').toLowerCase()
+    const q = String(search || '').toLowerCase()
+
+    const matchSearch = !q || sName.includes(q) || tId.includes(q)
+    const matchStatus = statusFilter === 'all' || String(p?.status || '').toLowerCase() === statusFilter.toLowerCase()
+    const matchMethod = methodFilter === 'all' || String(p?.method || '').toLowerCase() === methodFilter.toLowerCase()
     return matchSearch && matchStatus && matchMethod
   })
 

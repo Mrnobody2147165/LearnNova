@@ -1,14 +1,21 @@
 import { create } from 'zustand'
-import { notifications as mockNotifications } from '../data/dashboard'
+import notificationService from '../services/notifications'
 
-export const useNotificationStore = create((set) => ({
-  notifications: [...mockNotifications],
+export const useNotificationStore = create((set, get) => ({
+  notifications: [],
+  loaded: false,
+
+  fetchNotifications: async () => {
+    const data = await notificationService.getAll({ role: 'admin' })
+    set({ notifications: data || [], loaded: true })
+  },
 
   unreadCount: () => {
     return get().notifications.filter(n => !n.read).length
   },
 
-  markAsRead: (id) => {
+  markAsRead: async (id) => {
+    await notificationService.markAsRead(id)
     set((state) => ({
       notifications: state.notifications.map(n =>
         n.id === id ? { ...n, read: true } : n
@@ -16,7 +23,8 @@ export const useNotificationStore = create((set) => ({
     }))
   },
 
-  markAllRead: () => {
+  markAllRead: async () => {
+    await notificationService.markAllAsRead()
     set((state) => ({
       notifications: state.notifications.map(n => ({ ...n, read: true })),
     }))
@@ -36,5 +44,3 @@ export const useNotificationStore = create((set) => ({
     }))
   },
 }))
-
-const get = () => useNotificationStore.getState()

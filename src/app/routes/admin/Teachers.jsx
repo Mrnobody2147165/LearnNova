@@ -35,9 +35,13 @@ export default function Teachers() {
     })
   }, [])
 
-  const filtered = teachers.filter(t =>
-    !search || t.name.toLowerCase().includes(search.toLowerCase()) || t.email.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = (teachers || []).filter(t => {
+    const tName = String(t?.name || '').toLowerCase()
+    const tEmail = String(t?.email || '').toLowerCase()
+    const q = String(search || '').toLowerCase()
+
+    return !q || tName.includes(q) || tEmail.includes(q)
+  })
 
   const validate = () => {
     const errs = {}

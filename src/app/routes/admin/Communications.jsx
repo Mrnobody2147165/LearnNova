@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Send, Bell, MessageSquare, Megaphone } from 'lucide-react'
 import PageHeader from '../../../components/ui/PageHeader'
 import Card from '../../../components/ui/Card'
@@ -9,19 +9,21 @@ import Tabs from '../../../components/ui/Tabs'
 import EmptyState from '../../../components/ui/EmptyState'
 import { useToast } from '../../../components/ui/Toast'
 import { formatDate } from '../../../utils/format'
-
-const mockHistory = [
-  { id: 'MSG-1', audience: 'All Parents', subject: 'Fee Reminder - August 2026', message: 'Dear parents, this is a reminder that August fees are due by the 10th. Please ensure timely payment.', date: '2026-08-05', sent: 1842, status: 'Sent' },
-  { id: 'MSG-2', audience: 'Class 8-B', subject: 'Parent-Teacher Meeting', message: 'A parent-teacher meeting is scheduled for August 15th at 10 AM in the school auditorium.', date: '2026-08-03', sent: 64, status: 'Sent' },
-  { id: 'MSG-3', audience: 'All Parents', subject: 'School Holiday Notice', message: 'The school will remain closed on August 14th for Independence Day.', date: '2026-08-01', sent: 1842, status: 'Sent' },
-  { id: 'MSG-4', audience: 'Class 10-A', subject: 'Exam Schedule Released', message: 'The midterm exam schedule for Class 10-A has been released. Please check the school portal.', date: '2026-07-28', sent: 85, status: 'Sent' },
-]
+import communicationService from '../../../services/communications'
 
 export default function Communications() {
   const toast = useToast()
   const [tab, setTab] = useState('compose')
   const [form, setForm] = useState({ audience: 'all', classSelect: '', subject: '', message: '' })
-  const [history, setHistory] = useState(mockHistory)
+  const [history, setHistory] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    communicationService.getHistory().then(data => {
+      setHistory(data || [])
+      setLoading(false)
+    })
+  }, [])
 
   const tabs = [
     { id: 'compose', label: 'Compose' },
@@ -29,22 +31,19 @@ export default function Communications() {
     { id: 'history', label: 'Notification History' },
   ]
 
-  const handleSend = (e) => {
+  const handleSend = async (e) => {
     e.preventDefault()
     if (!form.subject || !form.message) {
       toast.error('Subject and message are required')
       return
     }
     const audienceLabel = form.audience === 'all' ? 'All Parents' : form.audience === 'class' ? `Class ${form.classSelect}` : 'Specific Students'
-    const newMsg = {
-      id: 'MSG-' + (history.length + 1),
-      audience: audienceLabel,
+    const newMsg = await communicationService.sendAnnouncement({
+      audience: form.audience,
+      audienceLabel,
       subject: form.subject,
       message: form.message,
-      date: new Date().toISOString().split('T')[0],
-      sent: form.audience === 'all' ? 1842 : form.audience === 'class' ? 64 : 15,
-      status: 'Sent',
-    }
+    })
     setHistory(prev => [newMsg, ...prev])
     setForm({ audience: 'all', classSelect: '', subject: '', message: '' })
     toast.success('Message sent successfully to parents')

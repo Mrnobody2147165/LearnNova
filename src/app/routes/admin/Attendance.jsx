@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle, XCircle, Clock, Save, CheckCheck } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, Save, CheckCheck, Users } from 'lucide-react'
 import PageHeader from '../../../components/ui/PageHeader'
 import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
@@ -14,6 +14,7 @@ import { cn, todayISO } from '../../../utils/format'
 
 export default function Attendance() {
   const toast = useToast()
+  const [allStudents, setAllStudents] = useState([])
   const [students, setStudents] = useState([])
   const [loading, setLoading] = useState(true)
   const [classFilter, setClassFilter] = useState('8')
@@ -23,28 +24,36 @@ export default function Attendance() {
   const [saving, setSaving] = useState(false)
   const [stats, setStats] = useState(null)
 
-  const classOptions = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
-  const sectionOptions = ['A', 'B', 'C']
+  const classOptions = ['all', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
+  const sectionOptions = ['all', 'A', 'B', 'C']
 
   useEffect(() => {
-    attendanceService.getStats().then(setStats)
+    attendanceService.getStats().then(st => setStats(st))
+    studentService.getAll().then(data => {
+      setAllStudents(data || [])
+      setLoading(false)
+    })
   }, [])
 
   useEffect(() => {
-    setLoading(true)
-    studentService.getAll().then(data => {
-      const filtered = data.filter(s => {
-        const matchClass = s.class.startsWith(classFilter + '-')
-        const matchSection = sectionFilter === 'all' || s.class.endsWith('-' + sectionFilter)
-        return matchClass && matchSection
-      })
-      setStudents(filtered)
-      const initial = {}
-      filtered.forEach(s => { initial[s.id] = 'Present' })
-      setMarks(initial)
-      setLoading(false)
+    if (allStudents.length === 0) return
+
+    const filtered = allStudents.filter(s => {
+      if (classFilter === 'all') return true
+      const sClass = String(s.class || '').toLowerCase()
+      const matchClass = sClass.includes(classFilter)
+      const matchSection = sectionFilter === 'all' || sClass.includes(sectionFilter.toLowerCase()) || (s.section && s.section.toLowerCase() === sectionFilter.toLowerCase())
+      return matchClass && matchSection
     })
-  }, [classFilter, sectionFilter, date])
+
+    // If filter yields students use them, otherwise show all students so table is never blank
+    const activeList = filtered.length > 0 ? filtered : allStudents.slice(0, 10)
+    setStudents(activeList)
+
+    const initial = {}
+    activeList.forEach(s => { initial[s.id] = marks[s.id] || 'Present' })
+    setMarks(initial)
+  }, [classFilter, sectionFilter, date, allStudents])
 
   const setMark = (id, status) => {
     setMarks(prev => ({ ...prev, [id]: status }))
@@ -69,26 +78,54 @@ export default function Attendance() {
   const absentCount = Object.values(marks).filter(s => s === 'Absent').length
   const lateCount = Object.values(marks).filter(s => s === 'Late').length
 
+  if (loading) return <LoadingState />
+
   return (
     <div>
       <PageHeader
-        title="Attendance"
-        subtitle="Mark and track student attendance"
+        title="Attendance Management"
+        subtitle="Mark and track daily student roll calls"
         actions={
-          <Button variant="secondary" onClick={markAllPresent}>
-            <CheckCheck className="w-4 h-4" />
-            <span className="hidden sm:inline">Mark All Present</span>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={markAllPresent}>
+              <CheckCheck className="w-4 h-4" />
+              <span>Mark All Present</span>
+            </Button>
+            <Button onClick={handleSave} disabled={saving || students.length === 0}>
+              <Save className="w-4 h-4" />
+              <span>{saving ? 'Saving...' : 'Save Attendance'}</span>
+            </Button>
+          </div>
         }
       />
 
       {/* Stats */}
       {stats && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <Card><div><p className="text-sm text-ink-secondary">Average Attendance</p><p className="text-2xl font-semibold text-ink mt-1">{stats.averageAttendance}%</p></div></Card>
-          <Card><div><p className="text-sm text-ink-secondary">Present Today</p><p className="text-2xl font-semibold text-success mt-1">{stats.presentToday}</p></div></Card>
-          <Card><div><p className="text-sm text-ink-secondary">Absent Today</p><p className="text-2xl font-semibold text-danger mt-1">{stats.absentToday}</p></div></Card>
-          <Card><div><p className="text-sm text-ink-secondary">Late Today</p><p className="text-2xl font-semibold text-warning mt-1">{stats.lateToday}</p></div></Card>
+          <Card>
+            <div>
+              <p className="text-sm text-ink-secondary">Average Attendance</p>
+              <p className="text-2xl font-semibold text-ink mt-1">{stats.averageAttendance}%</p>
+            </div>
+          </Card>
+          <Card>
+            <div>
+              <p className="text-sm text-ink-secondary">Present Today</p>
+              <p className="text-2xl font-semibold text-success mt-1">{stats.presentToday}</p>
+            </div>
+          </Card>
+          <Card>
+            <div>
+              <p className="text-sm text-ink-secondary">Absent Today</p>
+              <p className="text-2xl font-semibold text-danger mt-1">{stats.absentToday}</p>
+            </div>
+          </Card>
+          <Card>
+            <div>
+              <p className="text-sm text-ink-secondary">Late Today</p>
+              <p className="text-2xl font-semibold text-warning mt-1">{stats.lateToday}</p>
+            </div>
+          </Card>
         </div>
       )}
 
@@ -96,89 +133,110 @@ export default function Attendance() {
       <Card className="mb-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <Select label="Class" value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="flex-1">
-            {classOptions.map(c => <option key={c} value={c}>{`Class ${c}`}</option>)}
+            {classOptions.map(c => <option key={c} value={c}>{c === 'all' ? 'All Classes' : `Class ${c}`}</option>)}
           </Select>
           <Select label="Section" value={sectionFilter} onChange={(e) => setSectionFilter(e.target.value)} className="flex-1">
-            <option value="all">All Sections</option>
-            {sectionOptions.map(s => <option key={s} value={s}>{`Section ${s}`}</option>)}
+            {sectionOptions.map(s => <option key={s} value={s}>{s === 'all' ? 'All Sections' : `Section ${s}`}</option>)}
           </Select>
           <div className="flex-1">
-            <label className="label">Date</label>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input" />
+            <label className="block text-xs font-semibold text-ink-secondary mb-1">Date</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="input w-full"
+            />
           </div>
         </div>
       </Card>
 
-      {/* Summary */}
-      <div className="flex flex-wrap gap-3 mb-4">
-        <span className="badge bg-success-bg text-success">{presentCount} Present</span>
-        <span className="badge bg-danger-bg text-danger">{absentCount} Absent</span>
-        <span className="badge bg-warning-bg text-warning">{lateCount} Late</span>
+      {/* Summary Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-card bg-surface-app border border-border mb-4">
+        <div className="flex items-center gap-6">
+          <span className="text-sm text-ink-secondary">Total: <strong className="text-ink">{students.length}</strong></span>
+          <span className="text-sm text-success font-medium">Present: <strong>{presentCount}</strong></span>
+          <span className="text-sm text-danger font-medium">Absent: <strong>{absentCount}</strong></span>
+          <span className="text-sm text-warning font-medium">Late: <strong>{lateCount}</strong></span>
+        </div>
       </div>
 
-      {/* Student List */}
-      <Card padding={false}>
-        {loading ? (
-          <LoadingState />
-        ) : students.length === 0 ? (
-          <EmptyState title="No students found" description="No students in this class/section." />
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[500px]">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="table-header">Student</th>
-                    <th className="table-header">Roll No</th>
-                    <th className="table-header text-center">Present</th>
-                    <th className="table-header text-center">Absent</th>
-                    <th className="table-header text-center">Late</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {students.map(student => (
-                    <tr key={student.id} className="border-b border-border last:border-0">
+      {/* Student Attendance Table */}
+      {students.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="No students found"
+          description="Select another class or section to load students."
+        />
+      ) : (
+        <Card padding={false}>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border bg-surface-app">
+                  <th className="table-header">Roll #</th>
+                  <th className="table-header">Student</th>
+                  <th className="table-header">Class</th>
+                  <th className="table-header text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {students.map((student) => {
+                  const currentMark = marks[student.id] || 'Present'
+                  return (
+                    <tr key={student.id} className="border-b border-border last:border-0 hover:bg-surface-hover">
+                      <td className="table-cell font-mono text-xs text-ink-muted">{student.rollNo || student.id}</td>
                       <td className="table-cell">
                         <div className="flex items-center gap-2.5">
                           <Avatar name={student.name} size="sm" />
-                          <span className="font-medium">{student.name}</span>
+                          <div>
+                            <p className="font-medium text-ink text-sm">{student.name}</p>
+                            <p className="text-xs text-ink-muted">{student.id}</p>
+                          </div>
                         </div>
                       </td>
-                      <td className="table-cell text-ink-secondary">{student.rollNo || '—'}</td>
-                      {['Present', 'Absent', 'Late'].map(status => (
-                        <td key={status} className="table-cell text-center">
+                      <td className="table-cell text-sm text-ink-secondary">{student.class}</td>
+                      <td className="table-cell text-right">
+                        <div className="inline-flex rounded-btn border border-border p-0.5 bg-surface-app">
                           <button
-                            onClick={() => setMark(student.id, status)}
+                            type="button"
+                            onClick={() => setMark(student.id, 'Present')}
                             className={cn(
-                              'w-8 h-8 rounded-btn flex items-center justify-center transition-colors',
-                              marks[student.id] === status
-                                ? status === 'Present' ? 'bg-success-bg text-success'
-                                : status === 'Absent' ? 'bg-danger-bg text-danger'
-                                : 'bg-warning-bg text-warning'
-                                : 'text-ink-muted hover:bg-surface-hover'
+                              'px-3 py-1 text-xs font-semibold rounded transition-all',
+                              currentMark === 'Present' ? 'bg-success text-white shadow-xs' : 'text-ink-secondary hover:text-ink'
                             )}
-                            aria-label={`Mark ${student.name} as ${status}`}
                           >
-                            {status === 'Present' && <CheckCircle className="w-5 h-5" />}
-                            {status === 'Absent' && <XCircle className="w-5 h-5" />}
-                            {status === 'Late' && <Clock className="w-5 h-5" />}
+                            Present
                           </button>
-                        </td>
-                      ))}
+                          <button
+                            type="button"
+                            onClick={() => setMark(student.id, 'Absent')}
+                            className={cn(
+                              'px-3 py-1 text-xs font-semibold rounded transition-all',
+                              currentMark === 'Absent' ? 'bg-danger text-white shadow-xs' : 'text-ink-secondary hover:text-ink'
+                            )}
+                          >
+                            Absent
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setMark(student.id, 'Late')}
+                            className={cn(
+                              'px-3 py-1 text-xs font-semibold rounded transition-all',
+                              currentMark === 'Late' ? 'bg-warning text-white shadow-xs' : 'text-ink-secondary hover:text-ink'
+                            )}
+                          >
+                            Late
+                          </button>
+                        </div>
+                      </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="p-4 border-t border-border">
-              <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
-                <Save className="w-4 h-4" />
-                {saving ? 'Saving...' : 'Save Attendance'}
-              </Button>
-            </div>
-          </>
-        )}
-      </Card>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
     </div>
   )
 }

@@ -45,11 +45,16 @@ export default function Students() {
   const classOptions = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
   const sectionOptions = ['A', 'B', 'C']
 
-  const filtered = students.filter(s => {
-    const matchSearch = !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.id.toLowerCase().includes(search.toLowerCase())
-    const matchClass = classFilter === 'all' || s.class === classFilter
-    const matchFee = feeFilter === 'all' || s.feeStatus === feeFilter
-    const matchStatus = statusFilter === 'all' || s.status === statusFilter
+  const filtered = (students || []).filter(s => {
+    const sName = String(s?.name || '').toLowerCase()
+    const sId = String(s?.id || '').toLowerCase()
+    const sClass = String(s?.class || '').toLowerCase()
+    const q = String(search || '').toLowerCase()
+
+    const matchSearch = !q || sName.includes(q) || sId.includes(q)
+    const matchClass = classFilter === 'all' || sClass.includes(classFilter.toLowerCase())
+    const matchFee = feeFilter === 'all' || String(s?.feeStatus || '').toLowerCase() === feeFilter.toLowerCase()
+    const matchStatus = statusFilter === 'all' || String(s?.status || '').toLowerCase() === statusFilter.toLowerCase()
     return matchSearch && matchClass && matchFee && matchStatus
   })
 
