@@ -13,7 +13,6 @@ const reportDefs = [
   { id: 'RPT-2', title: 'Outstanding Fee Report', description: 'Detailed breakdown of outstanding and overdue fees', icon: BarChart3, color: 'text-danger', bg: 'bg-danger-bg' },
   { id: 'RPT-3', title: 'Student Enrollment Report', description: 'Enrollment statistics and trends by class and section', icon: Users, color: 'text-info', bg: 'bg-info-bg' },
   { id: 'RPT-4', title: 'Attendance Report', description: 'Attendance rates and patterns across all classes', icon: CalendarCheck, color: 'text-primary', bg: 'bg-primary-light' },
-  { id: 'RPT-5', title: 'Academic Performance Report', description: 'Grade distribution and academic performance analysis', icon: Award, color: 'text-warning', bg: 'bg-warning-bg' },
 ]
 
 export default function Reports() {
@@ -68,9 +67,9 @@ export default function Reports() {
       'RPT-3': {
         summary: [
           { label: 'Total Students', value: totalStudents.toLocaleString() },
-          { label: 'New Admissions', value: String(stats?.newStudents || 128) },
           { label: 'Active Students', value: activeStudents.toLocaleString() },
-          { label: 'Inactive', value: String(Math.max(0, totalStudents - activeStudents)) },
+          { label: 'Class Count', value: '5 Classes' },
+          { label: 'Section Count', value: '14 Sections' },
         ],
         rows: [
           { class: 'Class 6', students: 168, sections: 3 },
@@ -93,21 +92,6 @@ export default function Reports() {
           { class: 'Class 8', rate: '93.5%', present: 180, absent: 12 },
           { class: 'Class 9', rate: '89.7%', present: 188, absent: 22 },
           { class: 'Class 10', rate: '93.1%', present: 154, absent: 11 },
-        ],
-      },
-      'RPT-5': {
-        summary: [
-          { label: 'Average Score', value: '84.6%' },
-          { label: 'Top Grade', value: 'A+' },
-          { label: 'Pass Rate', value: '96.8%' },
-          { label: 'Faculty Count', value: String(stats?.totalTeachers || 8) },
-        ],
-        rows: [
-          { class: 'Class 6', average: 84, topGrade: 'A+', passRate: '98%' },
-          { class: 'Class 7', average: 81, topGrade: 'A', passRate: '97%' },
-          { class: 'Class 8', average: 83, topGrade: 'A+', passRate: '96%' },
-          { class: 'Class 9', average: 80, topGrade: 'A', passRate: '95%' },
-          { class: 'Class 10', average: 84, topGrade: 'A+', passRate: '95%' },
         ],
       },
     }

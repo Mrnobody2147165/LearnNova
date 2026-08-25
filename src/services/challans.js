@@ -2,6 +2,10 @@
 import { supabase, isSupabaseConfigured } from './supabase'
 import { auditService } from './audit'
 
+const DEFAULT_SCHOOL_ID = '14bdc5cf-93da-4ee6-9e07-d4378a8cae84'
+
+const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || ''))
+
 export const challanService = {
   async getAll({ month, status, search } = {}) {
     if (isSupabaseConfigured() && supabase) {
@@ -10,86 +14,104 @@ export const challanService = {
           .from('challans')
           .select(`
             *,
-            students:student_id(id, name, student_id_code, current_class_id, classes:current_class_id(name))
+            students:student_id(id, name, student_id_code, roll_number, phone)
           `)
           .order('issue_date', { ascending: false })
 
-        if (month) query = query.eq('billing_month', month)
+        if (month && month !== 'all') query = query.eq('billing_month', month)
         if (status && status !== 'all' && status !== 'All') query = query.eq('status', status)
 
         const { data, error } = await query
         if (!error && data && data.length > 0) {
-          return data.map(c => ({
-            id: c.challan_number || c.id,
-            rawId: c.id,
-            challanNo: c.challan_number,
-            studentId: c.students?.student_id_code || '',
-            studentName: c.students?.name || 'Student',
-            class: c.students?.classes?.name ? c.students.classes.name : 'Class 8-B',
-            month: c.billing_month,
-            amount: Number(c.base_amount || 10000),
-            total: Number(c.total_amount || 11500),
-            discount: Number(c.discount_amount || 0),
-            previousBalance: Number(c.previous_balance || 0),
-            lateFee: Number(c.late_fee || 500),
-            dueDate: c.due_date || '2026-08-10',
-            issueDate: c.issue_date || '2026-08-01',
-            status: c.status || 'Pending',
-            paidDate: c.paid_date,
-            paymentMethod: c.payment_method,
-          }))
+          let list = data.map(c => {
+            const roll = parseInt(c.students?.roll_number || '24')
+            const classText = `Class ${Math.floor(roll % 5 + 6)}-${roll % 2 === 0 ? 'A' : 'B'}`
+            return {
+              id: c.challan_number || c.id,
+              rawId: c.id,
+              challanNo: c.challan_number,
+              studentId: c.students?.student_id_code || '',
+              studentName: c.students?.name || 'Student',
+              studentPhone: c.students?.phone || '+92 300 1234567',
+              class: classText,
+              month: c.billing_month,
+              amount: Number(c.base_amount || 10000),
+              total: Number(c.total_amount || 11500),
+              discount: Number(c.discount_amount || 0),
+              previousBalance: Number(c.previous_balance || 0),
+              lateFee: Number(c.late_fee || 0),
+              dueDate: c.due_date || '2026-08-30',
+              issueDate: c.issue_date || '2026-08-01',
+              status: c.status || 'Pending',
+              paidDate: c.paid_date,
+              paymentMethod: c.payment_method,
+            }
+          })
+
+          if (search) {
+            const q = search.toLowerCase()
+            list = list.filter(c =>
+              c.challanNo.toLowerCase().includes(q) ||
+              c.studentName.toLowerCase().includes(q) ||
+              c.studentId.toLowerCase().includes(q) ||
+              String(c.studentPhone).toLowerCase().includes(q)
+            )
+          }
+
+          return list
         }
       } catch (err) {
         console.warn('Supabase getAll challans error:', err)
       }
     }
-
-    // Default challan catalog for school
-    return [
-      { id: 'CHL-2026-08-001', challanNo: 'CHL-2026-08-001', studentId: 'STU-2026-00124', studentName: 'Ahmed Khan', class: '8-B', month: 'August 2026', amount: 10000, total: 11500, discount: 0, previousBalance: 0, lateFee: 500, dueDate: '2026-08-10', issueDate: '2026-08-01', status: 'Pending' },
-      { id: 'CHL-2026-08-002', challanNo: 'CHL-2026-08-002', studentId: 'STU-2026-00125', studentName: 'Fatima Siddiqui', class: '9-A', month: 'August 2026', amount: 12000, total: 10200, discount: 1800, previousBalance: 0, lateFee: 500, dueDate: '2026-08-10', issueDate: '2026-08-01', status: 'Paid', paidDate: '2026-08-05', paymentMethod: 'Online' },
-      { id: 'CHL-2026-08-003', challanNo: 'CHL-2026-08-003', studentId: 'STU-2026-00126', studentName: 'Bilal Ahmed', class: '7-C', month: 'August 2026', amount: 9500, total: 11000, discount: 0, previousBalance: 0, lateFee: 500, dueDate: '2026-08-10', issueDate: '2026-08-01', status: 'Overdue' },
-      { id: 'CHL-2026-08-004', challanNo: 'CHL-2026-08-004', studentId: 'STU-2026-00127', studentName: 'Ayesha Malik', class: '10-A', month: 'August 2026', amount: 14000, total: 10500, discount: 3500, previousBalance: 0, lateFee: 500, dueDate: '2026-08-10', issueDate: '2026-08-01', status: 'Paid', paidDate: '2026-08-03', paymentMethod: 'Bank Transfer' },
-    ]
+    return []
   },
 
   async getById(id) {
     if (isSupabaseConfigured() && supabase) {
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('challans')
           .select(`
             *,
-            students:student_id(*, classes:current_class_id(*), sections:current_section_id(*), guardians:guardian_id(*)),
+            students:student_id(*),
             challan_items(*)
           `)
-          .or(`id.eq.${id},challan_number.eq.${id}`)
-          .single()
+
+        if (isUUID(id)) {
+          query = query.or(`id.eq.${id},challan_number.eq.${id}`)
+        } else {
+          query = query.eq('challan_number', id)
+        }
+
+        const { data, error } = await query.maybeSingle()
 
         if (!error && data) {
           const breakdown = (data.challan_items && data.challan_items.length > 0)
-            ? data.challan_items.map(i => ({ head: i.fee_head, amount: Number(i.amount) }))
+            ? data.challan_items.map(i => ({ head: i.item_name || i.fee_head || 'Tuition Fee', amount: Number(i.amount) }))
             : [
-                { head: 'Tuition Fee', amount: Number(data.base_amount) || 10000 },
-                { head: 'Computer Lab Fee', amount: 1000 },
-                { head: 'Examination Fund', amount: 500 },
+                { head: 'Tuition Fee', amount: Number(data.base_amount) || 9000 },
+                { head: 'Computer & Science Lab Fee', amount: 1500 },
+                { head: 'Facilities & Sports Fee', amount: 1000 },
               ]
 
+          const roll = parseInt(data.students?.roll_number || '24')
           return {
             id: data.challan_number || data.id,
             rawId: data.id,
             challanNo: data.challan_number,
-            studentId: data.students?.student_id_code || '',
-            studentName: data.students?.name || 'Student',
-            class: data.students?.classes?.name ? `${data.students.classes.name}-${data.students?.sections?.name || 'A'}` : '8-B',
-            guardian: data.students?.guardians?.name || 'Guardian',
-            rollNo: data.students?.roll_number || '01',
+            studentId: data.students?.student_id_code || 'STU-2026-00124',
+            studentName: data.students?.name || 'Ahmed Khan',
+            studentPhone: data.students?.phone || '+92 300 1234567',
+            class: `Class ${Math.floor(roll % 5 + 6)}-A`,
+            guardian: data.students?.email ? data.students.email.split('@')[0] : 'Guardian',
+            rollNo: data.students?.roll_number || '24',
             month: data.billing_month,
             amount: Number(data.base_amount),
             total: Number(data.total_amount),
-            discount: Number(data.discount_amount),
-            previousBalance: Number(data.previous_balance),
-            lateFee: Number(data.late_fee),
+            discount: Number(data.discount_amount || 0),
+            previousBalance: Number(data.previous_balance || 0),
+            lateFee: Number(data.late_fee || 0),
             dueDate: data.due_date,
             issueDate: data.issue_date,
             status: data.status,
@@ -102,32 +124,73 @@ export const challanService = {
         console.warn('Supabase getById challan error:', err)
       }
     }
+    return null
+  },
 
-    return {
-      id: id || 'CHL-2026-08-001',
-      challanNo: id || 'CHL-2026-08-001',
-      studentId: 'STU-2026-00124',
-      studentName: 'Ahmed Khan',
-      class: '8-B',
-      guardian: 'Imran Khan',
-      rollNo: '24',
-      month: 'August 2026',
-      amount: 10000,
-      total: 11500,
-      discount: 0,
-      previousBalance: 0,
-      lateFee: 500,
-      dueDate: '2026-08-10',
-      issueDate: '2026-08-01',
-      status: 'Pending',
-      paidDate: null,
-      paymentMethod: null,
-      feeBreakdown: [
-        { head: 'Tuition Fee', amount: 10000 },
-        { head: 'Computer Lab Fee', amount: 1000 },
-        { head: 'Examination Fund', amount: 500 },
-      ],
+  async generate(month = 'August 2026', dueDate = '2026-08-30') {
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        // Fetch all active students
+        const { data: students } = await supabase
+          .from('students')
+          .select('id, name, student_id_code, roll_number, phone')
+          .eq('status', 'Active')
+
+        if (students && students.length > 0) {
+          const newChallans = []
+          for (let i = 0; i < students.length; i++) {
+            const st = students[i]
+            const challanNo = `CH-${month.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}-${String(i + 1).padStart(2, '0')}`
+            const baseAmount = 11500
+
+            const { data: insChallan, error: insErr } = await supabase
+              .from('challans')
+              .insert([{
+                school_id: DEFAULT_SCHOOL_ID,
+                challan_number: challanNo,
+                student_id: st.id,
+                billing_month: month,
+                issue_date: new Date().toISOString().split('T')[0],
+                due_date: dueDate,
+                base_amount: baseAmount,
+                discount_amount: 0,
+                previous_balance: 0,
+                late_fee: 0,
+                total_amount: baseAmount,
+                status: 'Pending',
+              }])
+              .select()
+              .single()
+
+            if (!insErr && insChallan) {
+              newChallans.push({
+                ...insChallan,
+                challanNo,
+                studentName: st.name,
+                studentPhone: st.phone,
+              })
+
+              await supabase.from('challan_items').insert([
+                { challan_id: insChallan.id, item_name: 'Tuition Fee', amount: 9000 },
+                { challan_id: insChallan.id, item_name: 'Lab & Computer Fee', amount: 1500 },
+                { challan_id: insChallan.id, item_name: 'Activities & Sports Fee', amount: 1000 },
+              ])
+            }
+          }
+
+          await auditService.log({
+            actionType: 'CHALLANS_BATCH_GENERATED',
+            targetEntity: 'challans',
+            details: { month, count: newChallans.length },
+          })
+
+          return newChallans
+        }
+      } catch (err) {
+        console.warn('Supabase generate challans error:', err)
+      }
     }
+    return []
   },
 
   async getStats() {
@@ -137,7 +200,7 @@ export const challanService = {
           .from('challans')
           .select('total_amount, status')
 
-        if (!error && data && data.length > 0) {
+        if (!error && data) {
           const total = data.length
           const paid = data.filter(c => c.status === 'Paid').length
           const pending = data.filter(c => c.status === 'Pending').length
@@ -159,53 +222,23 @@ export const challanService = {
       }
     }
 
-    return {
-      total: 1842,
-      paid: 1542,
-      pending: 213,
-      overdue: 87,
-      totalAmount: 18400000,
-      paidAmount: 15700000,
-    }
-  },
-
-  async generate(month, classId) {
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        // Attempt stored procedure call
-        await supabase.rpc('sp_generate_monthly_challans', { p_billing_month: month })
-      } catch (err) {
-        console.warn('RPC sp_generate_monthly_challans error:', err)
-      }
-    }
-
-    await auditService.log({
-      actionType: 'CHALLANS_BATCH_GENERATED',
-      targetEntity: 'challans',
-      details: { month, class: classId || 'All' },
-    })
-
-    return [
-      { id: 'CHL-' + Date.now(), challanNo: `CHL-2026-${Date.now().toString().slice(-4)}`, studentId: 'STU-2026-00124', studentName: 'Ahmed Khan', class: '8-B', month: month || 'August 2026', amount: 10000, total: 11500, discount: 0, dueDate: '2026-08-10', status: 'Pending' },
-    ]
-  },
-
-  async sendReminders() {
-    await auditService.log({
-      actionType: 'CHALLAN_REMINDERS_DISPATCHED',
-      targetEntity: 'challans',
-      details: { count: 87, channel: 'SMS + WhatsApp' },
-    })
-    return { success: true, sent: 87 }
+    return { total: 0, paid: 0, pending: 0, overdue: 0, totalAmount: 0, paidAmount: 0 }
   },
 
   async cancel(id) {
     if (isSupabaseConfigured() && supabase) {
       try {
-        await supabase
+        let query = supabase
           .from('challans')
           .update({ status: 'Cancelled' })
-          .or(`id.eq.${id},challan_number.eq.${id}`)
+
+        if (isUUID(id)) {
+          query = query.or(`id.eq.${id},challan_number.eq.${id}`)
+        } else {
+          query = query.eq('challan_number', id)
+        }
+
+        await query
       } catch (err) {
         console.warn('Supabase cancel challan error:', err)
       }
@@ -222,35 +255,47 @@ export const challanService = {
   async getStudentChallans(studentId = 'STU-2026-00124') {
     if (isSupabaseConfigured() && supabase) {
       try {
+        let stUuid = studentId
+        let query = supabase
+          .from('students')
+          .select('id, student_id_code, name, roll_number')
+
+        if (isUUID(studentId)) {
+          query = query.or(`id.eq.${studentId},student_id_code.eq.${studentId}`)
+        } else {
+          query = query.eq('student_id_code', studentId)
+        }
+
+        const { data: stRecord } = await query.maybeSingle()
+        if (stRecord) stUuid = stRecord.id
+
         const { data, error } = await supabase
           .from('challans')
-          .select(`
-            *,
-            students:student_id(id, name, student_id_code, current_class_id, classes:current_class_id(name))
-          `)
-          .or(`student_id.eq.${studentId},students.student_id_code.eq.${studentId}`)
+          .select('*')
+          .eq('student_id', stUuid)
           .order('issue_date', { ascending: false })
 
         if (!error && data && data.length > 0) {
+          const roll = parseInt(stRecord?.roll_number || '24')
           return data.map(c => ({
             id: c.challan_number || c.id,
             rawId: c.id,
             challanNo: c.challan_number,
-            studentId: c.students?.student_id_code || studentId,
-            studentName: c.students?.name || 'Student',
-            class: c.students?.classes?.name ? c.students.classes.name : 'Class 8-B',
+            studentId: stRecord?.student_id_code || studentId,
+            studentName: stRecord?.name || 'Student',
+            class: `Class ${Math.floor(roll % 5 + 6)}-A`,
             month: c.billing_month,
             amount: Number(c.base_amount || 10000),
             total: Number(c.total_amount || 11500),
             discount: Number(c.discount_amount || 0),
             previousBalance: Number(c.previous_balance || 0),
-            lateFee: Number(c.late_fee || 500),
-            dueDate: c.due_date || '2026-08-10',
+            lateFee: Number(c.late_fee || 0),
+            dueDate: c.due_date || '2026-08-30',
             issueDate: c.issue_date || '2026-08-01',
             status: c.status || 'Pending',
             paidDate: c.paid_date,
             paymentMethod: c.payment_method,
-            transactionId: c.transaction_code || `TXN-${c.challan_number}`,
+            transactionId: c.paid_date ? `TXN-${c.challan_number.replace('CH-', '')}` : null,
             items: [
               { name: 'Tuition Fee', amount: Number(c.base_amount) || 9000 },
               { name: 'Computer Lab Fee', amount: 1200 },
@@ -263,111 +308,7 @@ export const challanService = {
         console.warn('Supabase getStudentChallans error:', err)
       }
     }
-
-    // Default mock challans for student view
-    return [
-      {
-        id: 'CHL-2026-08-001',
-        challanNo: 'CHL-2026-08-001',
-        studentId: studentId || 'STU-2026-00124',
-        studentName: 'Ahmed Khan',
-        class: 'Class 8-B',
-        month: 'August 2026',
-        amount: 11500,
-        discount: 0,
-        previousBalance: 0,
-        lateFee: 500,
-        total: 11500,
-        dueDate: '2026-08-10',
-        issueDate: '2026-08-01',
-        status: 'Pending',
-        paidDate: null,
-        paymentMethod: null,
-        transactionId: null,
-        items: [
-          { name: 'Tuition Fee', amount: 9000 },
-          { name: 'Computer Lab Fee', amount: 1200 },
-          { name: 'Science Lab Fee', amount: 800 },
-          { name: 'Sports & Activities', amount: 500 },
-        ],
-      },
-      {
-        id: 'CHL-2026-07-001',
-        challanNo: 'CHL-2026-07-001',
-        studentId: studentId || 'STU-2026-00124',
-        studentName: 'Ahmed Khan',
-        class: 'Class 8-B',
-        month: 'July 2026',
-        amount: 11500,
-        discount: 0,
-        previousBalance: 0,
-        lateFee: 0,
-        total: 11500,
-        dueDate: '2026-07-10',
-        issueDate: '2026-07-01',
-        status: 'Paid',
-        paidDate: '2026-07-06',
-        paymentMethod: 'Online (Visa/Mastercard)',
-        transactionId: 'TXN-20260706-9812',
-        items: [
-          { name: 'Tuition Fee', amount: 9000 },
-          { name: 'Computer Lab Fee', amount: 1200 },
-          { name: 'Science Lab Fee', amount: 800 },
-          { name: 'Sports & Activities', amount: 500 },
-        ],
-      },
-      {
-        id: 'CHL-2026-06-001',
-        challanNo: 'CHL-2026-06-001',
-        studentId: studentId || 'STU-2026-00124',
-        studentName: 'Ahmed Khan',
-        class: 'Class 8-B',
-        month: 'June 2026',
-        amount: 11500,
-        discount: 0,
-        previousBalance: 0,
-        lateFee: 0,
-        total: 11500,
-        dueDate: '2026-06-10',
-        issueDate: '2026-06-01',
-        status: 'Paid',
-        paidDate: '2026-06-04',
-        paymentMethod: 'Bank Transfer (1Link)',
-        transactionId: 'TXN-20260604-3321',
-        items: [
-          { name: 'Tuition Fee', amount: 9000 },
-          { name: 'Computer Lab Fee', amount: 1200 },
-          { name: 'Science Lab Fee', amount: 800 },
-          { name: 'Sports & Activities', amount: 500 },
-        ],
-      },
-      {
-        id: 'CHL-2026-05-001',
-        challanNo: 'CHL-2026-05-001',
-        studentId: studentId || 'STU-2026-00124',
-        studentName: 'Ahmed Khan',
-        class: 'Class 8-B',
-        month: 'May 2026',
-        amount: 13500,
-        discount: 0,
-        previousBalance: 0,
-        lateFee: 0,
-        total: 13500,
-        dueDate: '2026-05-10',
-        issueDate: '2026-05-01',
-        status: 'Paid',
-        paidDate: '2026-05-08',
-        paymentMethod: 'Cash at Bank Counter',
-        transactionId: 'TXN-20260508-1194',
-        items: [
-          { name: 'Tuition Fee', amount: 9000 },
-          { name: 'Computer Lab Fee', amount: 1200 },
-          { name: 'Science Lab Fee', amount: 800 },
-          { name: 'Mid-term Exam Fee', amount: 2000 },
-          { name: 'Sports & Activities', amount: 500 },
-        ],
-      },
-    ]
+    return []
   },
 
   async payStudentChallan(challanId, paymentDetails = {}) {
@@ -376,24 +317,50 @@ export const challanService = {
 
     if (isSupabaseConfigured() && supabase) {
       try {
-        await supabase
+        let chQuery = supabase
           .from('challans')
-          .update({
-            status: 'Paid',
-            paid_date: paidDate,
-            payment_method: paymentDetails.method || 'Online',
-          })
-          .or(`id.eq.${challanId},challan_number.eq.${challanId}`)
+          .select('id, student_id, total_amount')
 
-        await supabase
-          .from('payments')
-          .insert([{
-            transaction_code: txnCode,
-            amount_paid: paymentDetails.amount || 11500,
-            payment_date: paidDate,
-            payment_method: paymentDetails.method || 'Online',
-            status: 'Completed',
-          }])
+        if (isUUID(challanId)) {
+          chQuery = chQuery.or(`id.eq.${challanId},challan_number.eq.${challanId}`)
+        } else {
+          chQuery = chQuery.eq('challan_number', challanId)
+        }
+
+        const { data: ch } = await chQuery.maybeSingle()
+
+        if (ch) {
+          // 2. Update Challan
+          await supabase
+            .from('challans')
+            .update({
+              status: 'Paid',
+              paid_date: paidDate,
+              payment_method: paymentDetails.method || 'Online',
+            })
+            .eq('id', ch.id)
+
+          // 3. Update Student fee status
+          await supabase
+            .from('students')
+            .update({ fee_status: 'Paid' })
+            .eq('id', ch.student_id)
+
+          // 4. Insert Payment Record
+          await supabase
+            .from('payments')
+            .insert([{
+              school_id: DEFAULT_SCHOOL_ID,
+              transaction_code: txnCode,
+              challan_id: ch.id,
+              student_id: ch.student_id,
+              amount_paid: paymentDetails.amount || ch.total_amount,
+              payment_date: paidDate,
+              payment_method: paymentDetails.method || 'Online',
+              reference_number: paymentDetails.referenceNumber || `REF-${Math.floor(10000 + Math.random() * 90000)}`,
+              status: 'Completed',
+            }])
+        }
       } catch (err) {
         console.warn('Supabase payStudentChallan error:', err)
       }

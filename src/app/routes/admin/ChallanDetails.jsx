@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Download, Printer, Send, GraduationCap, QrCode } from 'lucide-react'
+import { ArrowLeft, Download, Printer, Send, GraduationCap, MessageSquare, Edit2 } from 'lucide-react'
 import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
+import Input from '../../../components/ui/Input'
+import Modal from '../../../components/ui/Modal'
 import StatusBadge from '../../../components/ui/StatusBadge'
 import LoadingState from '../../../components/ui/LoadingState'
 import EmptyState from '../../../components/ui/EmptyState'
 import { useToast } from '../../../components/ui/Toast'
 import { useSchoolStore } from '../../../stores/schoolStore'
 import challanService from '../../../services/challans'
+import pdfGenerator from '../../../services/pdfGenerator'
+import whatsappService from '../../../services/whatsapp'
 import { formatPKRFull, formatDate } from '../../../utils/format'
 
 export default function ChallanDetails() {
@@ -18,10 +22,16 @@ export default function ChallanDetails() {
   const { school } = useSchoolStore()
   const [challan, setChallan] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [whatsappModalOpen, setWhatsappModalOpen] = useState(false)
+  const [phone, setPhone] = useState('')
 
   useEffect(() => {
     challanService.getById(id).then(data => {
       setChallan(data)
+      setPhone(data?.studentPhone || '03001234567')
+      setLoading(false)
+    }).catch(err => {
+      console.error('Error loading challan:', err)
       setLoading(false)
     })
   }, [id])
@@ -30,6 +40,27 @@ export default function ChallanDetails() {
   if (!challan) return <EmptyState title="Challan not found" description="The challan you're looking for doesn't exist." action={<Button onClick={() => navigate('/challans')}>Back to Challans</Button>} />
 
   const subtotal = (challan.feeBreakdown || []).reduce((sum, item) => sum + (item.amount || 0), 0)
+
+  const handleDownloadPDF = () => {
+    try {
+      pdfGenerator.generateChallan(challan, school)
+      toast.success('Challan PDF downloaded successfully.')
+    } catch (err) {
+      console.error('PDF error:', err)
+      toast.error('Failed to generate PDF')
+    }
+  }
+
+  const handleDispatchWhatsApp = async () => {
+    try {
+      await whatsappService.sendChallanWhatsApp(challan, phone, school.name)
+      setChallan(prev => ({ ...prev, studentPhone: phone }))
+      setWhatsappModalOpen(false)
+      toast.success('WhatsApp dispatched with formatted Challan voucher notice!')
+    } catch (err) {
+      toast.error('Failed to dispatch WhatsApp message')
+    }
+  }
 
   return (
     <div>
@@ -44,14 +75,14 @@ export default function ChallanDetails() {
           <p className="text-sm text-ink-secondary mt-1">{challan.studentName} • Class {challan.class}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" onClick={() => toast.info('Preparing PDF download...')}>
+          <Button variant="secondary" onClick={handleDownloadPDF}>
             <Download className="w-4 h-4" /> PDF
           </Button>
           <Button variant="secondary" onClick={() => window.print()}>
             <Printer className="w-4 h-4" /> Print
           </Button>
-          <Button onClick={() => toast.success('Challan sent to parent via WhatsApp')}>
-            <Send className="w-4 h-4" /> Send to Parent
+          <Button onClick={() => setWhatsappModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+            <MessageSquare className="w-4 h-4 mr-1.5" /> Send WhatsApp
           </Button>
         </div>
       </div>
@@ -72,7 +103,7 @@ export default function ChallanDetails() {
           </div>
           <div className="text-right">
             <div className="mb-2"><StatusBadge status={challan.status} /></div>
-            <p className="text-xs text-ink-muted">Challan #{challan.challanNo}</p>
+            <p className="text-xs text-ink-muted font-mono font-bold">Challan #{challan.challanNo}</p>
           </div>
         </div>
 
@@ -85,6 +116,19 @@ export default function ChallanDetails() {
           <div>
             <p className="text-xs text-ink-muted mb-1">Class</p>
             <p className="text-sm font-medium text-ink">Class {challan.class}</p>
+          </div>
+          <div>
+            <p className="text-xs text-ink-muted mb-1">Parent WhatsApp</p>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-mono text-ink">{challan.studentPhone || 'Not Set'}</span>
+              <button
+                type="button"
+                onClick={() => setWhatsappModalOpen(true)}
+                className="text-xs text-primary hover:underline flex items-center gap-0.5"
+              >
+                <Edit2 className="w-3 h-3" /> Change
+              </button>
+            </div>
           </div>
           <div>
             <p className="text-xs text-ink-muted mb-1">Fee Month</p>
@@ -104,67 +148,84 @@ export default function ChallanDetails() {
         <div className="py-4 border-b border-border">
           <h3 className="text-sm font-semibold text-ink mb-3">Fee Breakdown</h3>
           <div className="space-y-2">
-            {challan.feeBreakdown.map(item => (
-              <div key={item.name} className="flex items-center justify-between text-sm">
-                <span className="text-ink-secondary">{item.name}</span>
-                <span className="text-ink">{formatPKRFull(item.amount)}</span>
+            {(challan.feeBreakdown || []).map((item, i) => (
+              <div key={i} className="flex justify-between text-sm">
+                <span className="text-ink-secondary">{item.head || item.name}</span>
+                <span className="font-medium text-ink">{formatPKRFull(item.amount)}</span>
               </div>
             ))}
+            <div className="flex justify-between text-sm pt-2 border-t border-border font-medium">
+              <span className="text-ink">Subtotal</span>
+              <span className="text-ink">{formatPKRFull(subtotal)}</span>
+            </div>
+            {challan.discount > 0 && (
+              <div className="flex justify-between text-sm text-success font-medium">
+                <span>Scholarship / Discount Applied</span>
+                <span>-{formatPKRFull(challan.discount)}</span>
+              </div>
+            )}
+            {challan.previousBalance > 0 && (
+              <div className="flex justify-between text-sm text-danger font-medium">
+                <span>Previous Arrears</span>
+                <span>+{formatPKRFull(challan.previousBalance)}</span>
+              </div>
+            )}
           </div>
-          <div className="flex items-center justify-between text-sm pt-3 mt-3 border-t border-border">
-            <span className="font-medium text-ink">Subtotal</span>
-            <span className="font-medium text-ink">{formatPKRFull(subtotal)}</span>
-          </div>
-        </div>
-
-        {/* Adjustments */}
-        <div className="py-4 border-b border-border space-y-2">
-          {challan.previousBalance > 0 && (
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-ink-secondary">Previous Balance</span>
-              <span className="text-ink">{formatPKRFull(challan.previousBalance)}</span>
-            </div>
-          )}
-          {challan.discount > 0 && (
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-ink-secondary">Discount</span>
-              <span className="text-success">-{formatPKRFull(challan.discount)}</span>
-            </div>
-          )}
-          {challan.lateFee > 0 && (
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-ink-secondary">Late Fee</span>
-              <span className="text-danger">+{formatPKRFull(challan.lateFee)}</span>
-            </div>
-          )}
         </div>
 
         {/* Total */}
-        <div className="flex items-center justify-between py-4">
-          <span className="text-base font-semibold text-ink">Total Amount</span>
-          <span className="text-xl font-semibold text-primary">{formatPKRFull(challan.total)}</span>
+        <div className="pt-4 flex justify-between items-baseline">
+          <div>
+            <p className="text-lg font-bold text-ink">Total Payable</p>
+            <p className="text-xs text-ink-muted">Due by {formatDate(challan.dueDate)}</p>
+          </div>
+          <p className="text-2xl font-bold text-primary">{formatPKRFull(challan.total)}</p>
         </div>
 
-        {/* Payment Instructions + QR */}
-        <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-border">
-          <div className="flex-1">
-            <h4 className="text-sm font-semibold text-ink mb-2">Payment Instructions</h4>
-            <p className="text-xs text-ink-secondary leading-relaxed">
-              Please deposit the fee at any branch of HBL or Meezan Bank before the due date. Use the challan number as reference. Online payments can be made via 1Bill or your banking app.
-            </p>
-            <div className="mt-3 space-y-1 text-xs text-ink-muted">
-              <p>Bank: HBL • Account: 0012-3456789-001</p>
-              <p>Bank: Meezan Bank • Account: 0198-7654321-001</p>
-            </div>
-          </div>
-          <div className="flex flex-col items-center gap-2">
-            <div className="w-24 h-24 border-2 border-border rounded-card flex items-center justify-center bg-surface-app">
-              <QrCode className="w-12 h-12 text-ink-muted" />
-            </div>
-            <p className="text-xs text-ink-muted">Scan to pay</p>
-          </div>
+        {/* Instructions */}
+        <div className="mt-6 p-4 rounded-btn bg-surface-app text-xs text-ink-secondary space-y-1">
+          <p className="font-medium text-ink">Payment Instructions:</p>
+          <p>1. Pay online via the student portal using credit card, debit card, or 1Link banking.</p>
+          <p>2. Or deposit cash at any designated bank branch using Challan #{challan.challanNo}.</p>
+          <p>3. Late fee of PKR 500 will apply after {formatDate(challan.dueDate)}.</p>
         </div>
       </Card>
+
+      {/* WhatsApp Verification & Send Modal */}
+      <Modal
+        open={whatsappModalOpen}
+        onClose={() => setWhatsappModalOpen(false)}
+        title="Verify WhatsApp & Send Challan"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setWhatsappModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleDispatchWhatsApp} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+              <Send className="w-4 h-4 mr-1.5" />
+              Dispatch via WhatsApp
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="p-3 bg-emerald-50 rounded-card border border-emerald-200 text-xs text-emerald-900">
+            You can verify or update the parent's WhatsApp number below. Updating it will permanently link the new number with this student.
+          </div>
+
+          <Input
+            label="Parent / Recipient WhatsApp Number *"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="03001234567 or +923001234567"
+          />
+
+          <div>
+            <p className="text-xs font-semibold text-ink mb-1.5">Formatted WhatsApp Message:</p>
+            <div className="p-3 rounded-card bg-surface-app border border-border font-mono text-[11px] whitespace-pre-wrap text-ink-secondary max-h-48 overflow-y-auto">
+              {whatsappService.generateChallanMessage(challan, school.name)}
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -2,107 +2,188 @@
 import { supabase, isSupabaseConfigured } from './supabase'
 import { auditService } from './audit'
 
+const DEFAULT_SCHOOL_ID = '14bdc5cf-93da-4ee6-9e07-d4378a8cae84'
+
+const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || ''))
+
 export const paymentService = {
-  async getAll({ status, method, search } = {}) {
+  async getAll({ search, method, status } = {}) {
     if (isSupabaseConfigured() && supabase) {
       try {
         let query = supabase
           .from('payments')
           .select(`
             *,
-            students:student_id(id, name, student_id_code),
-            challans:challan_id(id, challan_number)
+            students:student_id(name, student_id_code, roll_number),
+            challans:challan_id(challan_number, billing_month)
           `)
           .order('payment_date', { ascending: false })
 
-        if (status && status !== 'All' && status !== 'all') query = query.eq('status', status)
-        if (method && method !== 'All' && method !== 'all') query = query.eq('payment_method', method)
+        if (status && status !== 'all' && status !== 'All') query = query.eq('status', status)
+        if (method && method !== 'all') query = query.eq('payment_method', method)
 
         const { data, error } = await query
         if (!error && data && data.length > 0) {
-          return data.map(p => ({
+          let list = data.map(p => ({
             id: p.transaction_code || p.id,
+            rawId: p.id,
             transactionId: p.transaction_code,
             studentName: p.students?.name || 'Student',
             studentId: p.students?.student_id_code || '',
+            challanNo: p.challans?.challan_number || 'Direct Payment',
+            month: p.challans?.billing_month || 'August 2026',
             amount: Number(p.amount_paid),
             date: p.payment_date,
             method: p.payment_method,
             status: p.status,
-            challanNo: p.challans?.challan_number || '',
-            receiptUrl: p.receipt_url,
+            referenceNo: p.reference_number,
           }))
+
+          if (search) {
+            const q = search.toLowerCase()
+            list = list.filter(p =>
+              p.transactionId.toLowerCase().includes(q) ||
+              p.studentName.toLowerCase().includes(q) ||
+              p.challanNo.toLowerCase().includes(q)
+            )
+          }
+
+          return list
         }
       } catch (err) {
         console.warn('Supabase getAll payments error:', err)
       }
     }
-
-    return [
-      { id: 'TXN-2026-08-001', transactionId: 'TXN-2026-08-001', studentName: 'Fatima Siddiqui', studentId: 'STU-2026-00125', amount: 10200, date: '2026-08-05', method: 'Online', status: 'Completed', challanNo: 'CHL-2026-08-002' },
-      { id: 'TXN-2026-08-002', transactionId: 'TXN-2026-08-002', studentName: 'Ayesha Malik', studentId: 'STU-2026-00127', amount: 10500, date: '2026-08-03', method: 'Bank Transfer', status: 'Completed', challanNo: 'CHL-2026-08-004' },
-      { id: 'TXN-2026-08-003', transactionId: 'TXN-2026-08-003', studentName: 'Hamza Tariq', studentId: 'STU-2026-00128', amount: 11500, date: '2026-08-02', method: 'Cash', status: 'Completed', challanNo: 'CHL-2026-08-005' },
-      { id: 'TXN-2026-08-004', transactionId: 'TXN-2026-08-004', studentName: 'Zainab Hussain', studentId: 'STU-2026-00129', amount: 11500, date: '2026-08-01', method: 'Online', status: 'Pending', challanNo: 'CHL-2026-08-006' },
-    ]
+    return []
   },
 
   async getStats() {
     if (isSupabaseConfigured() && supabase) {
       try {
-        const { data, error } = await supabase
+        // 1. Fetch completed payments
+        const { data: paymentsData } = await supabase
           .from('payments')
           .select('amount_paid, payment_date, status')
 
-        if (!error && data && data.length > 0) {
-          const totalCollected = data
-            .filter(p => p.status === 'Completed')
-            .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0)
+        // 2. Fetch pending challans count
+        const { data: pendingChallans } = await supabase
+          .from('challans')
+          .select('total_amount, status')
+          .in('status', ['Pending', 'Overdue'])
 
-          const pending = data.filter(p => p.status === 'Pending').length
-          const failed = data.filter(p => p.status === 'Failed').length
+        const today = new Date().toISOString().split('T')[0]
+        const totalCollected = (paymentsData || [])
+          .filter(p => p.status === 'Completed')
+          .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0)
 
-          return {
-            totalCollected: totalCollected || 15700000,
-            todayCollection: 485000,
-            pending,
-            failed,
-          }
+        const todayCollection = (paymentsData || [])
+          .filter(p => p.status === 'Completed' && p.payment_date === today)
+          .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0)
+
+        const pendingCount = (pendingChallans || []).length
+        const pendingAmount = (pendingChallans || []).reduce((sum, c) => sum + Number(c.total_amount || 0), 0)
+        const failed = (paymentsData || []).filter(p => p.status === 'Failed').length
+
+        return {
+          totalCollected,
+          todayCollection,
+          pending: pendingCount,
+          pendingAmount,
+          failed,
         }
       } catch (err) {
         console.warn('Supabase getStats payments error:', err)
       }
     }
 
-    return {
-      totalCollected: 15700000,
-      todayCollection: 485000,
-      pending: 12,
-      failed: 2,
-    }
+    return { totalCollected: 0, todayCollection: 0, pending: 0, pendingAmount: 0, failed: 0 }
   },
 
   async getCollectionChart() {
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data } = await supabase.from('payments').select('amount_paid, payment_date').eq('status', 'Completed')
+        if (data && data.length > 0) {
+          const total = data.reduce((s, p) => s + Number(p.amount_paid || 0), 0)
+          return [
+            { month: 'Mar', collected: 0, target: 0 },
+            { month: 'Apr', collected: 0, target: 0 },
+            { month: 'May', collected: 0, target: 0 },
+            { month: 'Jun', collected: 0, target: 0 },
+            { month: 'Jul', collected: 0, target: 0 },
+            { month: 'Aug', collected: total, target: total },
+          ]
+        }
+      } catch (e) {}
+    }
+
     return [
-      { month: 'Mar', collected: 13200000, target: 16000000 },
-      { month: 'Apr', collected: 14100000, target: 16500000 },
-      { month: 'May', collected: 13900000, target: 17000000 },
-      { month: 'Jun', collected: 14800000, target: 17500000 },
-      { month: 'Jul', collected: 15200000, target: 18000000 },
-      { month: 'Aug', collected: 15700000, target: 18400000 },
+      { month: 'Mar', collected: 0, target: 0 },
+      { month: 'Apr', collected: 0, target: 0 },
+      { month: 'May', collected: 0, target: 0 },
+      { month: 'Jun', collected: 0, target: 0 },
+      { month: 'Jul', collected: 0, target: 0 },
+      { month: 'Aug', collected: 0, target: 0 },
     ]
   },
 
   async recordPayment(data) {
+    const txnCode = 'TXN-' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-' + Math.floor(1000 + Math.random() * 9000)
+    const paymentDate = data.date || new Date().toISOString().split('T')[0]
+
     if (isSupabaseConfigured() && supabase) {
       try {
-        const txnCode = 'TXN-' + new Date().toISOString().slice(0, 7) + '-' + String(Math.floor(Math.random() * 900) + 100)
+        let challanId = data.challanId
+        let studentId = data.studentId
+
+        // If challanId is provided, resolve and update it safely
+        if (challanId) {
+          let chQuery = supabase
+            .from('challans')
+            .select('id, student_id, total_amount')
+
+          if (isUUID(challanId)) {
+            chQuery = chQuery.or(`id.eq.${challanId},challan_number.eq.${challanId}`)
+          } else {
+            chQuery = chQuery.eq('challan_number', challanId)
+          }
+
+          const { data: ch } = await chQuery.maybeSingle()
+
+          if (ch) {
+            challanId = ch.id
+            studentId = ch.student_id
+
+            // Update challan to Paid
+            await supabase
+              .from('challans')
+              .update({
+                status: 'Paid',
+                paid_date: paymentDate,
+                payment_method: data.method || 'Cash',
+              })
+              .eq('id', ch.id)
+
+            // Update student fee status to Paid
+            await supabase
+              .from('students')
+              .update({ fee_status: 'Paid' })
+              .eq('id', ch.student_id)
+          }
+        }
+
+        // Insert payment transaction record
         const { data: inserted, error } = await supabase
           .from('payments')
           .insert([{
+            school_id: DEFAULT_SCHOOL_ID,
             transaction_code: txnCode,
-            amount_paid: data.amount,
-            payment_date: data.date || new Date().toISOString().split('T')[0],
+            challan_id: challanId || null,
+            student_id: studentId || null,
+            amount_paid: Number(data.amount || 0),
+            payment_date: paymentDate,
             payment_method: data.method || 'Cash',
+            reference_number: data.referenceNo || `REF-${Math.floor(1000 + Math.random() * 9000)}`,
             status: data.status || 'Completed',
           }])
           .select()
@@ -113,37 +194,42 @@ export const paymentService = {
             actionType: 'PAYMENT_RECORDED',
             targetEntity: 'payments',
             targetId: inserted.id,
-            details: data,
+            details: { transaction_code: txnCode, amount: data.amount, method: data.method },
           })
-          return inserted
+          return {
+            id: txnCode,
+            transactionId: txnCode,
+            ...inserted,
+          }
         }
       } catch (err) {
         console.warn('Supabase recordPayment error:', err)
       }
     }
 
-    const newPayment = {
-      id: 'TXN-' + new Date().toISOString().slice(0, 7) + '-' + String(Math.floor(Math.random() * 900) + 100),
-      transactionId: 'TXN-' + new Date().toISOString().slice(0, 7) + '-' + String(Math.floor(Math.random() * 900) + 100),
-      date: new Date().toISOString().split('T')[0],
+    return {
+      id: txnCode,
+      transactionId: txnCode,
+      date: paymentDate,
       status: 'Completed',
       ...data,
     }
-    await auditService.log({
-      actionType: 'PAYMENT_RECORDED',
-      targetEntity: 'payments',
-      details: newPayment,
-    })
-    return newPayment
   },
 
   async verifyPayment(id) {
     if (isSupabaseConfigured() && supabase) {
       try {
-        await supabase
+        let query = supabase
           .from('payments')
           .update({ status: 'Completed' })
-          .or(`id.eq.${id},transaction_code.eq.${id}`)
+
+        if (isUUID(id)) {
+          query = query.or(`id.eq.${id},transaction_code.eq.${id}`)
+        } else {
+          query = query.eq('transaction_code', id)
+        }
+
+        await query
       } catch (err) {
         console.warn('Supabase verifyPayment error:', err)
       }

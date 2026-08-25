@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Users, Wallet, AlertCircle, TrendingUp, Plus, ArrowRight, UserPlus, Bell, GraduationCap, CalendarCheck, ClipboardList, Award } from 'lucide-react'
+import { Users, Wallet, AlertCircle, TrendingUp, Plus, ArrowRight, UserPlus, Bell, CalendarCheck, BookMarked } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import PageHeader from '../../../components/ui/PageHeader'
 import StatCard from '../../../components/ui/StatCard'
@@ -10,7 +10,6 @@ import Avatar from '../../../components/ui/Avatar'
 import Button from '../../../components/ui/Button'
 import { useAuthStore } from '../../../stores/authStore'
 import dashboardService from '../../../services/dashboard'
-import examService from '../../../services/exams'
 import homeworkService from '../../../services/homework'
 import { formatPKR, formatPKRFull, formatDate, formatDateShort } from '../../../utils/format'
 
@@ -18,19 +17,17 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const [metrics, setMetrics] = useState({
-    totalStudents: 1842,
-    activeStudents: 1798,
-    newStudents: 128,
-    totalTeachers: 8,
-    totalCollected: 15700000,
-    totalOutstanding: 2700000,
-    collectionRate: 85.3,
-    attendance: { presentPct: 91.4, absentPct: 6.2, latePct: 2.4 },
+    totalStudents: 0,
+    activeStudents: 0,
+    newStudents: 0,
+    totalCollected: 0,
+    totalOutstanding: 0,
+    collectionRate: 0,
+    attendance: { presentPct: 0, absentPct: 0, latePct: 0 },
   })
   const [chartData, setChartData] = useState([])
   const [payments, setPayments] = useState([])
   const [admissions, setAdmissions] = useState([])
-  const [upcomingExams, setUpcomingExams] = useState([])
   const [activeHomework, setActiveHomework] = useState([])
 
   const hour = new Date().getHours()
@@ -58,14 +55,7 @@ export default function Dashboard() {
       if (pmts && pmts.length > 0) setPayments(pmts)
     })
 
-    // 5. Upcoming Exams
-    examService.getExams().then(exList => {
-      if (exList) {
-        setUpcomingExams(exList.filter(e => e.status === 'Scheduled').slice(0, 3))
-      }
-    })
-
-    // 6. Active Homework
+    // 5. Active Homework
     homeworkService.getHomeworkList().then(hwList => {
       if (hwList) {
         setActiveHomework(hwList.filter(h => h.status === 'Active').slice(0, 4))
@@ -74,17 +64,17 @@ export default function Dashboard() {
   }, [])
 
   const statCards = [
-    { label: 'Total Students', value: metrics.totalStudents.toLocaleString(), change: '+8.2%', trend: 'up', icon: Users },
-    { label: 'Teachers', value: metrics.totalTeachers.toLocaleString(), change: '+2', trend: 'up', icon: GraduationCap },
-    { label: 'Fee Collected', value: formatPKR(metrics.totalCollected), change: '+12.4%', trend: 'up', icon: Wallet },
-    { label: 'Outstanding Fees', value: formatPKR(metrics.totalOutstanding), change: '-4.1%', trend: 'down', icon: AlertCircle },
+    { label: 'Total Students', value: metrics.totalStudents.toLocaleString(), icon: Users },
+    { label: 'Attendance Rate', value: `${metrics.attendance.presentPct}%`, icon: CalendarCheck },
+    { label: 'Fee Collected', value: formatPKR(metrics.totalCollected), icon: Wallet },
+    { label: 'Outstanding Fees', value: formatPKR(metrics.totalOutstanding), icon: AlertCircle },
   ]
 
   const attentionItems = [
     { id: 'ATT-1', text: 'Unpaid challans need collection follow-up', action: 'View Students', link: '/students?feeStatus=Pending' },
     { id: 'ATT-2', text: 'Monthly fee invoices ready for dispatch', action: 'View Challans', link: '/challans' },
-    { id: 'ATT-3', text: 'Homework submissions awaiting review', action: 'Review', link: '/academics/homework' },
-    { id: 'ATT-4', text: 'Scheduled exams pending result entry', action: 'Enter Grades', link: '/academics/grades' },
+    { id: 'ATT-3', text: 'Homework submissions awaiting review', action: 'Review', link: '/homework' },
+    { id: 'ATT-4', text: 'Student attendance reports ready for review', action: 'View Attendance', link: '/attendance' },
   ]
 
   return (
@@ -107,8 +97,6 @@ export default function Dashboard() {
             key={stat.label}
             label={stat.label}
             value={stat.value}
-            change={stat.change}
-            trend={stat.trend}
             icon={stat.icon}
           />
         ))}
@@ -126,7 +114,7 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center justify-between p-3 rounded-btn bg-surface-app">
               <span className="text-sm text-ink-secondary">New Students</span>
-              <span className="text-lg font-semibold text-success">+{metrics.newStudents}</span>
+              <span className="text-lg font-semibold text-ink">{metrics.newStudents}</span>
             </div>
             <div className="flex items-center justify-between p-3 rounded-btn bg-surface-app">
               <span className="text-sm text-ink-secondary">Active Students</span>
@@ -173,13 +161,13 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Attendance + Upcoming Exams */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+      {/* Attendance + Homework */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         {/* Attendance */}
         <Card>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-base font-semibold text-ink">Attendance Summary</h3>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/academics/attendance')}>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/attendance')}>
               View
               <ArrowRight className="w-3.5 h-3.5" />
             </Button>
@@ -215,36 +203,11 @@ export default function Dashboard() {
           </div>
         </Card>
 
-        {/* Upcoming Exams */}
-        <Card>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold text-ink">Upcoming Exams</h3>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/academics/exams')}>
-              View All
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Button>
-          </div>
-          <div className="space-y-3">
-            {upcomingExams.map(exam => (
-              <div key={exam.id} className="flex items-center gap-3 p-2.5 rounded-btn bg-surface-app">
-                <div className="w-9 h-9 rounded-btn bg-primary-light flex items-center justify-center flex-shrink-0">
-                  <Award className="w-4 h-4 text-primary" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-ink truncate">{exam.subject}</p>
-                  <p className="text-xs text-ink-muted">{formatDateShort(exam.date)} • Class {exam.class}-{exam.section}</p>
-                </div>
-              </div>
-            ))}
-            {upcomingExams.length === 0 && <p className="text-sm text-ink-muted text-center py-4">No upcoming exams</p>}
-          </div>
-        </Card>
-
         {/* Homework */}
         <Card>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold text-ink">Homework</h3>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/academics/homework')}>
+            <h3 className="text-base font-semibold text-ink">Active Homework</h3>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/homework')}>
               View All
               <ArrowRight className="w-3.5 h-3.5" />
             </Button>

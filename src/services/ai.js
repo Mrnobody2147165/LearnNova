@@ -17,33 +17,24 @@ ABOUT LEARNIFY ERP:
      - Multi-channel payment recording: Cash, Bank Transfer, Online, JazzCash / Easypaisa.
      - Fee Statuses: Paid, Pending, Overdue.
      - Challan route: /challans | Fee structure: /fees | Payment records: /payments
-  2. Student & Teacher Lifecycle:
-     - Student enrolment with roll numbers, class & section assignment (Class 6-A to 10-C), guardian details (CNIC, phone, occupation).
-     - Teacher directory with subject specializations, qualifications, and class assignments.
-     - Student route: /students | Teacher route: /teachers | Class route: /classes
-  3. Academics & Curriculum:
-     - Curriculum syllabus with interactive topic progress tracking (Pending, In Progress, Completed).
-     - Homework assignments, student PDF/file submissions, and teacher feedback grading.
-     - Exam scheduling, total marks, and grade evaluation (A+ >=90%, A >=80%, B+ >=70%, B >=60%, C >=50%, F <50%).
-     - Exam route: /academics/exams | Grades route: /academics/grades | Homework route: /academics/homework | Subjects: /subjects
-  4. Daily Attendance:
-     - Daily student attendance logging (Present, Absent, Late).
-     - Automated alerts when student attendance drops below 75%.
-     - Attendance route: /academics/attendance
-  5. Multi-Role Portals:
-     - Admin Dashboard: /dashboard
-     - Teacher Portal: /teacher
-     - Parent Portal: /parent
-     - Student Portal: /student/dashboard, /student/subjects, /student/grades, /student/exams, /student/attendance, /student/homework, /student/progress, /student/schedule, /student/profile
-  6. Communications & Reports:
-     - Broadcast announcements to all parents, teachers, or students: /communications
-     - Financial, Attendance, and Academic analytics reports: /reports
+   2. Student Management:
+      - Student enrolment with roll numbers, class & section assignment (Class 6-A to 10-C), guardian details (CNIC, phone, occupation).
+      - Student directory and profile route: /students
+   3. Attendance & Homework:
+      - Daily student attendance logging (Present, Absent, Late).
+      - Homework assignments and student PDF/file submissions.
+      - Attendance route: /attendance | Homework route: /homework
+   4. Multi-Role Portals:
+      - Admin Dashboard: /dashboard
+      - Student Portal: /student/dashboard, /student/attendance, /student/homework, /student/fees, /student/profile
+   5. Analytics & Reports:
+      - Financial and Attendance analytics reports: /reports
 
 YOUR INSTRUCTIONS:
-- Answer inquiries about the school, students, fee collection, attendance, academics, announcements, or general education administration.
+- Answer inquiries about the school, students, fee collection, attendance, homework, or general education administration.
 - Be professional, concise, encouraging, and clear.
-- Use markdown formatting: bold key figures, use bullet points, and tables when presenting financial or academic breakdowns.
-- When relevant, suggest direct navigation links in markdown format, e.g., [View Challans](/challans), [Check Attendance](/academics/attendance), [View Students](/students), [Manage Fees](/fees).
+- Use markdown formatting: bold key figures, use bullet points, and tables when presenting financial or attendance breakdowns.
+- When relevant, suggest direct navigation links in markdown format, e.g., [View Challans](/challans), [Check Attendance](/attendance), [View Students](/students), [Manage Fees](/fees), [Homework](/homework).
 `
 
 export const aiService = {
@@ -126,7 +117,6 @@ CURRENT LIVE SCHOOL DATA:
         const data = await response.json()
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response received from Gemini.'
 
-        // Extract action buttons from text if markdown links are present
         const actions = []
         const linkMatches = text.matchAll(/\[([^\]]+)\]\(([^)]+)\)/g)
         for (const match of linkMatches) {
@@ -135,26 +125,19 @@ CURRENT LIVE SCHOOL DATA:
           }
         }
 
-        return {
-          text,
-          actions: actions.slice(0, 3),
-          isGemini: true,
-          question,
-        }
+        return { text, actions: actions.slice(0, 3) }
       } catch (err) {
-        console.error('Gemini API request failed, falling back to intelligent handler:', err)
+        console.warn('Gemini fetch error, using smart rule response:', err)
       }
     }
 
-    // 2. Intelligent local fallback if API key is not yet set in .env
-    return this.getLocalResponse(question)
+    return this.getMockResponse(userPrompt)
   },
 
-  async getLocalResponse(question) {
-    const normalized = question.toLowerCase().trim()
-    const liveContext = await this.getLiveSchoolContext()
+  getMockResponse(userPrompt) {
+    const normalized = userPrompt.toLowerCase()
 
-    if (normalized.includes('paid') || normalized.includes('unpaid') || normalized.includes('who hasn\'t')) {
+    if (normalized.includes('unpaid') || normalized.includes('defaulter') || normalized.includes('pending fee')) {
       return {
         text: `### Unpaid Fee Analysis (August 2026)\n\nBased on live records, there are currently **213 students** with unpaid monthly challans.\n\n- **Total Outstanding:** PKR 2,710,000\n- **Overdue Invoices:** PKR 1,200,000\n- **Collection Rate:** 85.3%\n\n**Top Classes with Outstanding Dues:**\n1. Class 8-B — PKR 384,000 (42 students)\n2. Class 9-A — PKR 326,000 (31 students)\n3. Class 7-C — PKR 281,000 (28 students)\n\n*Tip: Connect your Gemini API Key in \`.env\` (\`VITE_GEMINI_API_KEY\`) for full generative reasoning.*`,
         actions: [
@@ -166,10 +149,10 @@ CURRENT LIVE SCHOOL DATA:
 
     if (normalized.includes('overdue')) {
       return {
-        text: `### Overdue Students Summary\n\nThere are **87 students** whose fee challan due dates have passed.\n\n- **Total Overdue Amount:** PKR 1,200,000\n- **Late Fee Fine Applied:** PKR 500/challan\n\n**Action Recommended:** Send automated reminder notices to parents via SMS or WhatsApp in the Communications hub.`,
+        text: `### Overdue Students Summary\n\nThere are **87 students** whose fee challan due dates have passed.\n\n- **Total Overdue Amount:** PKR 1,200,000\n- **Late Fee Fine Applied:** PKR 500/challan\n\n**Action Recommended:** Follow up with parents for pending dues.`,
         actions: [
           { label: 'View Overdue Students', link: '/students?feeStatus=Overdue' },
-          { label: 'Send Announcements', link: '/communications' },
+          { label: 'View Challans', link: '/challans' },
         ],
       }
     }
@@ -188,49 +171,58 @@ CURRENT LIVE SCHOOL DATA:
       return {
         text: `### Attendance Performance Summary\n\n- **School Average Attendance:** 91.4%\n- **Present:** 91.4%\n- **Absent:** 6.2%\n- **Late:** 2.4%\n\n**Students Needing Attendance Support (<75%):** 34 students.\nBest performing class: **Class 10-A (94%)**.`,
         actions: [
-          { label: 'View Attendance Records', link: '/academics/attendance' },
+          { label: 'View Attendance Records', link: '/attendance' },
         ],
       }
     }
 
-    if (normalized.includes('grade') || normalized.includes('exam') || normalized.includes('performance') || normalized.includes('subject')) {
+    if (normalized.includes('homework')) {
       return {
-        text: `### Academic & Examination Overview\n\n- **Overall Academic Average:** 84.6%\n- **Highest Performing Subject:** Computer Science (95% avg)\n- **Subject Requiring Focus:** Physics (78% avg)\n- **Scheduled Exams:** 4 upcoming monthly tests scheduled.`,
+        text: `### Homework & Assignments Overview\n\n- **Active Homework Tasks:** 4 assignments across grades.\n- **Submission Rate:** 88.5%\n- **Pending Evaluation:** 12 submissions.`,
         actions: [
-          { label: 'View Exam Schedules', link: '/academics/exams' },
-          { label: 'View Gradebook', link: '/academics/grades' },
+          { label: 'View Homework', link: '/homework' },
         ],
       }
     }
 
     return {
-      text: `Hello! I am your **Learnify AI Assistant**.\n\nI have complete knowledge of your school's:\n- 💳 **Fee Automation & Billing** (Challans, discounts, payments, reconciliations)\n- 👨‍🎓 **Student & Guardian Directory** (Roll numbers, classes, contacts)\n- 📚 **Academics & Curriculum** (Syllabus progress, homework, exam grades)\n- 📅 **Daily Attendance & Timetables**\n- 📢 **Broadcast Communications & Reports**\n\n${!this.isConfigured() ? `> **Note:** To enable full conversational AI powered by Google Gemini, add your \`VITE_GEMINI_API_KEY\` into your \`.env\` file.\n\n` : ''}How can I assist you with your school administration today?`,
+      text: `Hello! I am your **Learnify AI Assistant**.\n\nI have complete knowledge of your school's:\n- 💳 **Fee Automation & Billing** (Challans, discounts, payments, reconciliations)\n- 👨‍🎓 **Student & Guardian Directory** (Roll numbers, classes, contacts)\n- 📅 **Daily Attendance & Timetables**\n- 📝 **Homework Management**\n- 📊 **Financial & Attendance Reports**\n\n${!this.isConfigured() ? `> **Note:** To enable full conversational AI powered by Google Gemini, add your \`VITE_GEMINI_API_KEY\` into your \`.env\` file.\n\n` : ''}How can I assist you with your school administration today?`,
       actions: [
         { label: 'Fee Summary', link: '/fees' },
         { label: 'Student Directory', link: '/students' },
-        { label: 'Exams & Grades', link: '/academics/exams' },
+        { label: 'Attendance', link: '/attendance' },
       ],
     }
   },
 
+  async askAssistant(question, context = '') {
+    const fullPrompt = context ? `Context / School Policy:\n${context}\n\nQuestion: ${question}` : question
+    return this.query(fullPrompt)
+  },
+
+  async interpretDocument(documentText) {
+    const prompt = `You are a school administration data parser. Analyze the following document text and return a structured summary of all fee items, due dates, late fees, and rules found:\n\n${documentText}`
+    return this.query(prompt)
+  },
+
   async generateFeeSummary() {
-    return this.askAssistant('generate a fee collection report')
+    return this.query('generate a fee collection report')
   },
 
   async analyzeCollection() {
-    return this.askAssistant('analyze fee collection and payment trends')
+    return this.query('analyze fee collection and payment trends')
   },
 
   async analyzeStudentPerformance(studentId) {
-    return this.askAssistant(`analyze performance for student ${studentId || 'STU-2026-00124'}`)
+    return this.query(`analyze performance and attendance for student ${studentId || 'STU-2026-00124'}`)
   },
 
   async analyzeFeeCollection() {
-    return this.askAssistant('analyze fee collection breakdown')
+    return this.query('analyze fee collection breakdown')
   },
 
   async generateReport(type = 'general') {
-    return this.askAssistant(`generate a detailed ${type} report for our school administration`)
+    return this.query(`generate a detailed ${type} report for our school administration`)
   },
 }
 

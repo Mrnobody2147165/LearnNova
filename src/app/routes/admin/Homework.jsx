@@ -12,19 +12,28 @@ import EmptyState from '../../../components/ui/EmptyState'
 import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import { useToast } from '../../../components/ui/Toast'
 import homeworkService from '../../../services/homework'
-import subjectService from '../../../services/subjects'
 import { formatDate } from '../../../utils/format'
+
+const SUBJECT_OPTIONS = [
+  'Mathematics',
+  'English',
+  'Science',
+  'Urdu',
+  'Computer Science',
+  'Pakistan Studies',
+  'Islamiat',
+  'General Knowledge',
+]
 
 export default function Homework() {
   const toast = useToast()
   const [homeworkList, setHomeworkList] = useState([])
-  const [subjects, setSubjects] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editHw, setEditHw] = useState(null)
   const [deleteId, setDeleteId] = useState(null)
-  const [form, setForm] = useState({ title: '', subject: '', subjectId: '', class: '', section: 'A', description: '', dueDate: '' })
+  const [form, setForm] = useState({ title: '', subject: 'Mathematics', class: '8', section: 'A', description: '', dueDate: '' })
   const [errors, setErrors] = useState({})
 
   useEffect(() => {
@@ -33,9 +42,12 @@ export default function Homework() {
 
   const loadData = async () => {
     setLoading(true)
-    const [hwData, subjData] = await Promise.all([homeworkService.getAll(), subjectService.getAll()])
-    setHomeworkList(hwData)
-    setSubjects(subjData)
+    try {
+      const hwData = await homeworkService.getAll()
+      setHomeworkList(hwData || [])
+    } catch {
+      setHomeworkList([])
+    }
     setLoading(false)
   }
 
@@ -166,11 +178,9 @@ export default function Homework() {
           <Input label="Title" placeholder="e.g. Chapter 5 Exercises" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} error={errors.title} />
           <div className="grid grid-cols-2 gap-4">
             <Select label="Subject" value={form.subject} onChange={(e) => {
-              const subj = subjects.find(s => s.name === e.target.value)
-              setForm({ ...form, subject: e.target.value, subjectId: subj?.id || '' })
+              setForm({ ...form, subject: e.target.value })
             }} error={errors.subject}>
-              <option value="">Select subject</option>
-              {subjects.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+              {SUBJECT_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
             </Select>
             <Select label="Class" value={form.class} onChange={(e) => setForm({ ...form, class: e.target.value })} error={errors.class}>
               <option value="">Select class</option>

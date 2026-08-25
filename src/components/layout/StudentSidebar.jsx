@@ -1,22 +1,16 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard, BookOpen, GraduationCap, CalendarCheck,
-  ClipboardList, TrendingUp, CalendarDays, Bell, User, LogOut, X, Wallet, GraduationCap as Logo
+  LayoutDashboard, CalendarCheck,
+  ClipboardList, User, LogOut, X, Wallet, GraduationCap as Logo
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { cn } from '../../utils/format'
 
 const navItems = [
   { to: '/student/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/student/subjects', label: 'My Subjects', icon: BookOpen },
-  { to: '/student/grades', label: 'Grades', icon: GraduationCap },
-  { to: '/student/exams', label: 'Exams', icon: ClipboardList },
   { to: '/student/attendance', label: 'Attendance', icon: CalendarCheck },
   { to: '/student/homework', label: 'Homework', icon: ClipboardList },
   { to: '/student/fees', label: 'Fees & Challans', icon: Wallet },
-  { to: '/student/progress', label: 'Progress', icon: TrendingUp },
-  { to: '/student/schedule', label: 'Schedule', icon: CalendarDays },
-  { to: '/student/notifications', label: 'Notifications', icon: Bell },
   { to: '/student/profile', label: 'Profile', icon: User },
 ]
 

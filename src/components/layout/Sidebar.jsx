@@ -1,8 +1,8 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard, Users, GraduationCap, BookOpen,
+  LayoutDashboard, Users, GraduationCap,
   Wallet, FileText, CreditCard, CalendarCheck, BookMarked,
-  BarChart3, Sparkles, Settings, LogOut, X, ClipboardList, Award, Library
+  BarChart3, Sparkles, Settings, LogOut, X
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useSchoolStore } from '../../stores/schoolStore'
@@ -13,18 +13,13 @@ const navSections = [
     items: [
       { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { to: '/students', label: 'Students', icon: Users },
-      { to: '/teachers', label: 'Teachers', icon: GraduationCap },
-      { to: '/classes', label: 'Classes', icon: BookOpen },
-      { to: '/subjects', label: 'Subjects', icon: Library },
     ],
   },
   {
     label: 'Academics',
     items: [
-      { to: '/academics/exams', label: 'Exams', icon: ClipboardList },
-      { to: '/academics/grades', label: 'Grades', icon: Award },
-      { to: '/academics/attendance', label: 'Attendance', icon: CalendarCheck },
-      { to: '/academics/homework', label: 'Homework', icon: BookMarked },
+      { to: '/attendance', label: 'Attendance', icon: CalendarCheck },
+      { to: '/homework', label: 'Homework', icon: BookMarked },
     ],
   },
   {
@@ -39,7 +34,6 @@ const navSections = [
     label: 'Insights',
     items: [
       { to: '/reports', label: 'Reports', icon: BarChart3 },
-      { to: '/communications', label: 'Communications', icon: BookOpen },
       { to: '/ai-assistant', label: 'AI Assistant', icon: Sparkles },
     ],
   },

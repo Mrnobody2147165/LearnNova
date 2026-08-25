@@ -1,57 +1,47 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Search, Bell, Menu, Check, CheckCheck, LogOut, User as UserIcon } from 'lucide-react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { Search, Menu, LogOut, User as UserIcon, GraduationCap, Shield } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
-import { useNotificationStore } from '../../stores/notificationStore'
 import { useSchoolStore } from '../../stores/schoolStore'
 import studentService from '../../services/students'
 import challanService from '../../services/challans'
-import { cn, initials } from '../../utils/format'
+import { cn } from '../../utils/format'
 import Avatar from '../ui/Avatar'
 
 export default function Topbar({ onMenuClick }) {
   const navigate = useNavigate()
-  const { user, logout } = useAuthStore()
-  const { school } = useSchoolStore()
-  const { notifications, markAsRead, markAllRead } = useNotificationStore()
+  const location = useLocation()
+  const { user, logout, switchRole } = useAuthStore()
+  const { fetchSchoolFromDB } = useSchoolStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
-  const [notifOpen, setNotifOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [students, setStudents] = useState([])
-  const [teachers, setTeachers] = useState([])
-  const [classes, setClasses] = useState([])
   const [challans, setChallans] = useState([])
   const searchRef = useRef(null)
-  const notifRef = useRef(null)
   const profileRef = useRef(null)
 
-  const unreadCount = notifications.filter(n => !n.read).length
+  const isStudentPortal = location.pathname.startsWith('/student')
 
   const handleLogout = async () => {
-    setProfileOpen(false)
     await logout()
     navigate('/login')
   }
 
   useEffect(() => {
+    fetchSchoolFromDB()
     Promise.all([
       studentService.getAll(),
-      studentService.getTeachers(),
-      studentService.getClasses(),
       challanService.getAll(),
-    ]).then(([sData, tData, cData, chData]) => {
-      setStudents(sData || [])
-      setTeachers(tData || [])
-      setClasses(cData || [])
+    ]).then(([stData, chData]) => {
+      setStudents(stData || [])
       setChallans(chData || [])
-    })
+    }).catch(err => console.warn('Topbar prefetch warning:', err))
   }, [])
 
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (searchRef.current && !searchRef.current.contains(e.target)) setSearchOpen(false)
-      if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false)
       if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false)
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -61,19 +51,11 @@ export default function Topbar({ onMenuClick }) {
   const searchResults = searchQuery.length > 1 ? [
     ...students
       .filter(s => s.name?.toLowerCase().includes(searchQuery.toLowerCase()) || s.id?.toLowerCase().includes(searchQuery.toLowerCase()))
-      .slice(0, 4)
-      .map(s => ({ type: 'Student', label: s.name, sub: `${s.id} • Class ${s.class}`, link: `/students/${s.id}` })),
-    ...teachers
-      .filter(t => t.name?.toLowerCase().includes(searchQuery.toLowerCase()))
-      .slice(0, 3)
-      .map(t => ({ type: 'Teacher', label: t.name, sub: t.id, link: '/teachers' })),
-    ...classes
-      .filter(c => c.name?.toLowerCase().includes(searchQuery.toLowerCase()))
-      .slice(0, 3)
-      .map(c => ({ type: 'Class', label: c.name, sub: `${c.students || 0} students`, link: '/classes' })),
+      .slice(0, 5)
+      .map(s => ({ type: 'Student', label: s.name, sub: `${s.id} • ${s.class}`, link: `/students/${s.id}` })),
     ...challans
       .filter(ch => ch.challanNo?.toLowerCase().includes(searchQuery.toLowerCase()) || ch.studentName?.toLowerCase().includes(searchQuery.toLowerCase()))
-      .slice(0, 3)
+      .slice(0, 4)
       .map(ch => ({ type: 'Challan', label: ch.challanNo, sub: `${ch.studentName} • ${ch.month}`, link: `/challans/${ch.id}` })),
   ] : []
 
@@ -81,11 +63,6 @@ export default function Topbar({ onMenuClick }) {
     navigate(result.link)
     setSearchOpen(false)
     setSearchQuery('')
-  }
-
-  const notifIcon = (type) => {
-    const colors = { warning: 'bg-warning-bg text-warning', info: 'bg-info-bg text-info', success: 'bg-success-bg text-success' }
-    return colors[type] || colors.info
   }
 
   return (
@@ -98,90 +75,82 @@ export default function Topbar({ onMenuClick }) {
         <Menu className="w-5 h-5" />
       </button>
 
-      {/* Search */}
+      {/* Global search */}
       <div ref={searchRef} className="relative flex-1 max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true) }}
-          onFocus={() => setSearchOpen(true)}
-          placeholder="Search students, teachers, challans..."
-          className="w-full pl-9 pr-3 py-2 text-sm bg-surface-app rounded-btn border border-transparent focus:border-border focus:bg-white focus:outline-none transition-colors"
-        />
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true) }}
+            onFocus={() => setSearchOpen(true)}
+            placeholder="Search students, challans, payments..."
+            className="input pl-9 pr-4 py-1.5 text-sm w-full bg-surface-app"
+          />
+        </div>
+
         {searchOpen && searchResults.length > 0 && (
-          <div className="absolute top-full mt-1 w-full bg-white rounded-card shadow-dropdown border border-border max-h-80 overflow-y-auto z-50">
-            {searchResults.map((result, i) => (
-              <button
-                key={i}
-                onClick={() => handleSearchClick(result)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-surface-hover text-left transition-colors"
-              >
-                <span className="text-xs font-medium text-primary bg-primary-light px-2 py-0.5 rounded-full whitespace-nowrap">
-                  {result.type}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-ink truncate">{result.label}</p>
-                  <p className="text-xs text-ink-muted truncate">{result.sub}</p>
+          <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-card shadow-dropdown border border-border overflow-hidden z-50">
+            <div className="p-1">
+              {searchResults.map((r, i) => (
+                <div
+                  key={i}
+                  onClick={() => handleSearchClick(r)}
+                  className="flex items-center justify-between px-3 py-2 rounded-btn hover:bg-surface-hover cursor-pointer"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-ink">{r.label}</p>
+                    <p className="text-xs text-ink-muted">{r.sub}</p>
+                  </div>
+                  <span className="text-xs font-medium text-primary px-2 py-0.5 rounded bg-primary-light">
+                    {r.type}
+                  </span>
                 </div>
-              </button>
-            ))}
-          </div>
-        )}
-        {searchOpen && searchQuery.length > 1 && searchResults.length === 0 && (
-          <div className="absolute top-full mt-1 w-full bg-white rounded-card shadow-dropdown border border-border p-4 text-center text-sm text-ink-muted z-50">
-            No results found for "{searchQuery}"
+              ))}
+            </div>
           </div>
         )}
       </div>
 
-      <div className="flex items-center gap-2 ml-auto">
-        {/* Notifications */}
-        <div ref={notifRef} className="relative">
+      <div className="flex items-center gap-2.5 ml-auto">
+        {/* Modern Portal Switcher Segmented Pill */}
+        <div className="flex items-center p-1 bg-surface-app border border-border rounded-btn gap-1 shadow-inner">
           <button
-            onClick={() => setNotifOpen(!notifOpen)}
-            className="relative p-2 rounded-btn hover:bg-surface-hover transition-colors"
-            aria-label="Notifications"
-          >
-            <Bell className="w-5 h-5 text-ink-secondary" />
-            {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 bg-danger text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                {unreadCount}
-              </span>
+            type="button"
+            onClick={() => {
+              switchRole('admin')
+              navigate('/dashboard')
+            }}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-xs font-semibold transition-all duration-150',
+              !isStudentPortal
+                ? 'bg-primary text-white shadow-sm'
+                : 'text-ink-secondary hover:text-ink hover:bg-white/80'
             )}
+            title="Switch to Admin Management Portal"
+          >
+            <Shield className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Admin Portal</span>
+            <span className="sm:hidden">Admin</span>
           </button>
-          {notifOpen && (
-            <div className="absolute top-full right-0 mt-1 w-80 bg-white rounded-card shadow-dropdown border border-border max-h-96 overflow-y-auto z-50">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                <p className="text-sm font-semibold text-ink">Notifications</p>
-                {unreadCount > 0 && (
-                  <button onClick={markAllRead} className="flex items-center gap-1 text-xs text-primary hover:underline">
-                    <CheckCheck className="w-3.5 h-3.5" />
-                    Mark all read
-                  </button>
-                )}
-              </div>
-              {notifications.map(n => (
-                <div
-                  key={n.id}
-                  className={cn('flex gap-3 px-4 py-3 border-b border-border last:border-0 hover:bg-surface-hover cursor-pointer', !n.read && 'bg-primary-50/30')}
-                  onClick={() => markAsRead(n.id)}
-                >
-                  <div className={cn('w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0', notifIcon(n.type))}>
-                    <Bell className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-ink truncate">{n.title}</p>
-                      {!n.read && <span className="w-2 h-2 bg-primary rounded-full flex-shrink-0" />}
-                    </div>
-                    <p className="text-xs text-ink-secondary mt-0.5">{n.message}</p>
-                    <p className="text-xs text-ink-muted mt-1">{n.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              switchRole('student')
+              navigate('/student/dashboard')
+            }}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-xs font-semibold transition-all duration-150',
+              isStudentPortal
+                ? 'bg-primary text-white shadow-sm'
+                : 'text-ink-secondary hover:text-ink hover:bg-white/80'
+            )}
+            title="Switch to Student Learning Portal"
+          >
+            <GraduationCap className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Student Portal</span>
+            <span className="sm:hidden">Student</span>
+          </button>
         </div>
 
         {/* Profile */}
@@ -190,49 +159,55 @@ export default function Topbar({ onMenuClick }) {
             onClick={() => setProfileOpen(!profileOpen)}
             className="flex items-center gap-2 p-1 rounded-btn hover:bg-surface-hover transition-colors"
           >
-            <Avatar name={user?.name || 'Admin'} size="sm" />
+            <Avatar name={user?.name || 'User'} size="sm" />
             <div className="hidden sm:block text-left">
-              <p className="text-sm font-medium text-ink">{user?.name || 'Admin User'}</p>
-              <p className="text-xs text-ink-muted">{user?.role || 'admin'}</p>
+              <p className="text-sm font-medium text-ink">{user?.name || 'Admin'}</p>
+              <p className="text-xs text-ink-muted capitalize">{user?.role || 'admin'}</p>
             </div>
           </button>
           {profileOpen && (
             <div className="absolute top-full right-0 mt-1 w-52 bg-white rounded-card shadow-dropdown border border-border py-1 z-50">
               <div className="px-3 py-2 border-b border-border mb-1">
-                <p className="text-sm font-semibold text-ink truncate">{user?.name || 'User'}</p>
-                <p className="text-xs text-ink-muted capitalize">{user?.role || 'student'} {user?.class ? `• Class ${user.class}` : ''}</p>
+                <p className="text-sm font-semibold text-ink truncate">{user?.name || 'Admin'}</p>
+                <p className="text-xs text-ink-muted capitalize">{user?.role || 'admin'}</p>
               </div>
 
-              {user?.role === 'admin' ? (
-                <>
-                  <button
-                    onClick={() => { setProfileOpen(false); navigate('/settings') }}
-                    className="w-full px-3 py-2 text-sm text-left text-ink-secondary hover:bg-surface-hover hover:text-ink transition-colors"
-                  >
-                    Settings
-                  </button>
-                  <button
-                    onClick={() => { setProfileOpen(false); navigate('/teacher') }}
-                    className="w-full px-3 py-2 text-sm text-left text-ink-secondary hover:bg-surface-hover hover:text-ink transition-colors"
-                  >
-                    Teacher Portal
-                  </button>
-                  <button
-                    onClick={() => { setProfileOpen(false); navigate('/parent') }}
-                    className="w-full px-3 py-2 text-sm text-left text-ink-secondary hover:bg-surface-hover hover:text-ink transition-colors"
-                  >
-                    Parent Portal
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => { setProfileOpen(false); navigate('/student/profile') }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-ink-secondary hover:bg-surface-hover hover:text-ink transition-colors"
-                >
-                  <UserIcon className="w-4 h-4 text-ink-muted" />
-                  My Profile
-                </button>
-              )}
+              {/* Portal navigation options */}
+              <button
+                onClick={() => {
+                  setProfileOpen(false)
+                  switchRole('admin')
+                  navigate('/dashboard')
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-ink-secondary hover:bg-surface-hover hover:text-ink transition-colors"
+              >
+                <Shield className="w-4 h-4 text-ink-muted" />
+                <span>Admin Dashboard</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setProfileOpen(false)
+                  switchRole('student')
+                  navigate('/student/dashboard')
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-ink-secondary hover:bg-surface-hover hover:text-ink transition-colors"
+              >
+                <GraduationCap className="w-4 h-4 text-ink-muted" />
+                <span>Student Dashboard</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setProfileOpen(false)
+                  switchRole('student')
+                  navigate('/student/fees')
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-ink-secondary hover:bg-surface-hover hover:text-ink transition-colors"
+              >
+                <UserIcon className="w-4 h-4 text-ink-muted" />
+                <span>Student Fees</span>
+              </button>
 
               <div className="border-t border-border mt-1 pt-1">
                 <button

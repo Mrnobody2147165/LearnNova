@@ -18,6 +18,7 @@ import { useSchoolStore } from '../../../stores/schoolStore'
 import challanService from '../../../services/challans'
 import feeService from '../../../services/fees'
 import { formatPKRFull, formatDate, downloadCSV } from '../../../utils/format'
+import pdfGenerator from '../../../services/pdfGenerator'
 
 export default function StudentFees() {
   const { user } = useAuthStore()
@@ -972,6 +973,17 @@ export default function StudentFees() {
             <span className="text-xs text-ink-muted">Valid for payment at all authorized bank branches</span>
             <div className="flex items-center gap-2">
               <Button variant="secondary" onClick={() => setChallanModalOpen(false)}>Close</Button>
+              <Button variant="secondary" onClick={() => {
+                try {
+                  pdfGenerator.generateChallan(selectedChallan, school)
+                  toast.success('Challan PDF downloaded')
+                } catch {
+                  toast.error('Failed to generate PDF')
+                }
+              }}>
+                <Download className="w-4 h-4" />
+                <span>PDF</span>
+              </Button>
               <Button onClick={handlePrint}>
                 <Printer className="w-4 h-4" />
                 <span>Print Challan</span>
@@ -1077,6 +1089,17 @@ export default function StudentFees() {
         footer={
           <div className="flex items-center justify-end gap-2 w-full">
             <Button variant="secondary" onClick={() => setReceiptModalOpen(false)}>Close</Button>
+            <Button variant="secondary" onClick={() => {
+              try {
+                pdfGenerator.generateReceipt(activeReceipt, school)
+                toast.success('Payment receipt PDF downloaded')
+              } catch {
+                toast.error('Failed to generate PDF')
+              }
+            }}>
+              <Download className="w-4 h-4" />
+              <span>Download PDF</span>
+            </Button>
             <Button onClick={handlePrint}>
               <Printer className="w-4 h-4" />
               <span>Print Receipt</span>

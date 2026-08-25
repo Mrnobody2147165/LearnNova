@@ -1,23 +1,24 @@
 import { create } from 'zustand'
+import { supabase } from '../services/supabase'
 
 const STORAGE_KEY = 'saas_school_data'
 
 const defaultSchool = {
-  name: 'Greenfield Academy',
+  name: 'Learnify Model Grammar School',
   logo: null,
-  address: '123 Education Road, Gulshan-e-Iqbal, Karachi',
+  address: 'Main Campus, Block 5, Gulshan-e-Iqbal, Karachi',
   phone: '+92 21 3456 7890',
-  email: 'info@greenfieldacademy.edu.pk',
+  email: 'info@learnify.edu.pk',
   session: '2026-2027',
-  classes: ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10'],
+  classes: ['Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10'],
   sections: ['A', 'B', 'C'],
   fees: {
-    tuition: 8000,
+    tuition: 9000,
     transport: 2000,
     exam: 500,
     other: 1000,
     dueDate: 10,
-    lateFee: 200,
+    lateFee: 500,
   },
   setupComplete: true,
 }
@@ -29,6 +30,25 @@ const loadSchool = () => {
 
 export const useSchoolStore = create((set) => ({
   school: loadSchool(),
+
+  fetchSchoolFromDB: async () => {
+    if (supabase) {
+      try {
+        const { data } = await supabase.from('schools').select('*').limit(1).single()
+        if (data) {
+          const updated = {
+            ...defaultSchool,
+            name: data.name || defaultSchool.name,
+            address: data.address || defaultSchool.address,
+            phone: data.phone || defaultSchool.phone,
+            email: data.email || defaultSchool.email,
+          }
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+          set({ school: updated })
+        }
+      } catch (e) {}
+    }
+  },
 
   updateSchool: (data) => {
     set((state) => {

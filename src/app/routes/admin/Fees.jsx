@@ -11,11 +11,11 @@ import feeService from '../../../services/fees'
 import { formatPKR, formatPKRFull } from '../../../utils/format'
 
 const defaultOverview = {
-  totalGenerated: 18400000,
-  collected: 15700000,
-  outstanding: 2700000,
-  collectionRate: 85.3,
-  discountsAwarded: 850000,
+  totalGenerated: 0,
+  collected: 0,
+  outstanding: 0,
+  collectionRate: 0,
+  discountsAwarded: 0,
 }
 
 export default function Fees() {

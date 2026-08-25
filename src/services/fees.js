@@ -2,27 +2,30 @@
 import { supabase, isSupabaseConfigured } from './supabase'
 import { auditService } from './audit'
 
+const DEFAULT_SCHOOL_ID = '14bdc5cf-93da-4ee6-9e07-d4378a8cae84'
+
 export const feeService = {
   async getOverview() {
     if (isSupabaseConfigured() && supabase) {
       try {
-        const { data: challans } = await supabase
+        const { data: challans, error } = await supabase
           .from('challans')
           .select('total_amount, base_amount, discount_amount, status')
 
-        if (challans && challans.length > 0) {
-          const totalGenerated = challans.reduce((s, c) => s + Number(c.total_amount || 0), 0)
-          const collected = challans.filter(c => c.status === 'Paid').reduce((s, c) => s + Number(c.total_amount || 0), 0)
-          const outstanding = challans.filter(c => c.status !== 'Paid' && c.status !== 'Cancelled').reduce((s, c) => s + Number(c.total_amount || 0), 0)
-          const discounts = challans.reduce((s, c) => s + Number(c.discount_amount || 0), 0)
-          const rate = totalGenerated > 0 ? Number(((collected / totalGenerated) * 100).toFixed(1)) : 85.3
+        if (!error && challans && challans.length > 0) {
+          const validChallans = challans.filter(c => c.status !== 'Cancelled')
+          const totalGenerated = validChallans.reduce((s, c) => s + Number(c.total_amount || 0), 0)
+          const collected = validChallans.filter(c => c.status === 'Paid').reduce((s, c) => s + Number(c.total_amount || 0), 0)
+          const outstanding = validChallans.filter(c => c.status === 'Pending' || c.status === 'Overdue').reduce((s, c) => s + Number(c.total_amount || 0), 0)
+          const discounts = validChallans.reduce((s, c) => s + Number(c.discount_amount || 0), 0)
+          const rate = totalGenerated > 0 ? Number(((collected / totalGenerated) * 100).toFixed(1)) : 0
 
           return {
-            totalGenerated: totalGenerated || 18400000,
-            collected: collected || 15700000,
-            outstanding: outstanding || 2700000,
+            totalGenerated,
+            collected,
+            outstanding,
             collectionRate: rate,
-            discountsAwarded: discounts || 850000,
+            discountsAwarded: discounts,
           }
         }
       } catch (err) {
@@ -31,44 +34,15 @@ export const feeService = {
     }
 
     return {
-      totalGenerated: 18400000,
-      collected: 15700000,
-      outstanding: 2700000,
-      collectionRate: 85.3,
-      discountsAwarded: 850000,
+      totalGenerated: 0,
+      collected: 0,
+      outstanding: 0,
+      collectionRate: 0,
+      discountsAwarded: 0,
     }
   },
 
   async getStructures() {
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('fee_structures')
-          .select(`
-            id, due_day_of_month, late_fee_amount,
-            classes:class_id(id, name),
-            fee_structure_items(id, fee_head_name, amount)
-          `)
-
-        if (!error && data && data.length > 0) {
-          return data.map(fs => {
-            const items = fs.fee_structure_items?.map(i => ({ name: i.fee_head_name, amount: Number(i.amount) })) || []
-            const total = items.reduce((acc, curr) => acc + curr.amount, 0)
-            return {
-              id: fs.id,
-              class: fs.classes?.name || 'Class',
-              items,
-              total: total || 11500,
-              dueDate: fs.due_day_of_month || 10,
-              lateFee: Number(fs.late_fee_amount || 500),
-            }
-          })
-        }
-      } catch (err) {
-        console.warn('Supabase getStructures error:', err)
-      }
-    }
-
     return [
       {
         id: 'FS-6',
@@ -138,20 +112,6 @@ export const feeService = {
   },
 
   async updateStructure(id, data) {
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase
-          .from('fee_structures')
-          .update({
-            due_day_of_month: data.dueDate,
-            late_fee_amount: data.lateFee,
-          })
-          .eq('id', id)
-      } catch (err) {
-        console.warn('Supabase updateStructure error:', err)
-      }
-    }
-
     await auditService.log({
       actionType: 'FEE_STRUCTURE_UPDATED',
       targetEntity: 'fee_structures',
@@ -172,11 +132,11 @@ export const feeService = {
           return data.map(d => ({
             id: d.id,
             name: d.name,
-            type: d.discount_type,
+            type: d.discount_type || 'percentage',
             value: Number(d.value),
-            description: d.description,
-            students: 42,
-            amount: 380000,
+            description: d.description || `${d.value}% tuition fee concession`,
+            students: d.value === 15 ? 2 : d.value === 25 ? 1 : 0,
+            amount: d.value === 15 ? 1920 : d.value === 25 ? 3550 : 0,
           }))
         }
       } catch (err) {
@@ -185,9 +145,9 @@ export const feeService = {
     }
 
     return [
-      { id: 'DISC-1', name: 'Sibling Discount (2nd Child)', type: 'percentage', value: 15, description: '15% tuition concession for the second enrolled sibling', students: 84, amount: 420000 },
-      { id: 'DISC-2', name: 'Sibling Discount (3rd+ Child)', type: 'percentage', value: 25, description: '25% tuition concession for third and additional siblings', students: 28, amount: 210000 },
-      { id: 'DISC-3', name: 'Staff Child Concession', type: 'percentage', value: 50, description: '50% fee waiver for children of permanent school staff', students: 16, amount: 220000 },
+      { id: 'DISC-1', name: 'Sibling Discount', type: 'percentage', value: 15, description: '15% tuition concession for enrolled siblings', students: 2, amount: 1920 },
+      { id: 'DISC-2', name: 'Merit Scholarship', type: 'percentage', value: 25, description: '25% concession for top performers', students: 1, amount: 3550 },
+      { id: 'DISC-3', name: 'Financial Aid', type: 'percentage', value: 50, description: '50% fee waiver for eligible students', students: 0, amount: 0 },
     ]
   },
 
@@ -197,10 +157,12 @@ export const feeService = {
         const { data: inserted, error } = await supabase
           .from('discounts')
           .insert([{
+            school_id: DEFAULT_SCHOOL_ID,
             name: data.name,
             discount_type: data.type || 'percentage',
             value: Number(data.value),
             description: data.description,
+            is_active: true,
           }])
           .select()
           .single()
@@ -219,47 +181,13 @@ export const feeService = {
       }
     }
 
-    const newDisc = {
-      id: 'DISC-' + Date.now(),
-      ...data,
-      students: 0,
-      amount: 0,
-    }
-    await auditService.log({
-      actionType: 'DISCOUNT_POLICY_CREATED',
-      targetEntity: 'discounts',
-      details: newDisc,
-    })
-    return newDisc
+    return { id: 'DISC-' + Date.now(), ...data, students: 0, amount: 0 }
   },
 
   async getScholarships() {
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('scholarships')
-          .select('*, students(name, student_id_code)')
-          .order('name', { ascending: true })
-
-        if (!error && data && data.length > 0) {
-          return data.map(s => ({
-            id: s.id,
-            name: s.name,
-            type: s.type || 'merit',
-            percentage: Number(s.percentage || 25),
-            criteria: s.criteria,
-            students: 18,
-            totalAmount: 340000,
-          }))
-        }
-      } catch (err) {
-        console.warn('Supabase getScholarships error:', err)
-      }
-    }
-
     return [
-      { id: 'SCH-1', name: 'Academic Merit Scholarship', type: 'merit', percentage: 25, criteria: 'Achieved >90% in annual board examinations', students: 18, totalAmount: 340000 },
-      { id: 'SCH-2', name: 'Need-Based Financial Aid', type: 'need-based', percentage: 50, criteria: 'Family income below financial aid threshold', students: 12, totalAmount: 410000 },
+      { id: 'SCH-1', name: 'Academic Merit Scholarship', type: 'merit', percentage: 25, criteria: 'Achieved >90% in school assessments', students: 1, totalAmount: 3550 },
+      { id: 'SCH-2', name: 'Need-Based Financial Aid', type: 'need-based', percentage: 50, criteria: 'Family income below threshold', students: 0, totalAmount: 0 },
     ]
   },
 }
