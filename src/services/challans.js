@@ -1,12 +1,16 @@
-// Challans Service with Supabase & Audit Tracking
+﻿// Challans Service with Supabase Reads + Backend Write Proxy
 import { supabase, isSupabaseConfigured } from './supabase'
 import { auditService } from './audit'
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'
 
 const DEFAULT_SCHOOL_ID = '14bdc5cf-93da-4ee6-9e07-d4378a8cae84'
 
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || ''))
 
 export const challanService = {
+  // ── READ OPERATIONS (direct Supabase — low risk, anon key) ───
+
   async getAll({ month, status, search } = {}) {
     if (isSupabaseConfigured() && supabase) {
       try {
@@ -127,72 +131,6 @@ export const challanService = {
     return null
   },
 
-  async generate(month = 'August 2026', dueDate = '2026-08-30') {
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        // Fetch all active students
-        const { data: students } = await supabase
-          .from('students')
-          .select('id, name, student_id_code, roll_number, phone')
-          .eq('status', 'Active')
-
-        if (students && students.length > 0) {
-          const newChallans = []
-          for (let i = 0; i < students.length; i++) {
-            const st = students[i]
-            const challanNo = `CH-${month.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}-${String(i + 1).padStart(2, '0')}`
-            const baseAmount = 11500
-
-            const { data: insChallan, error: insErr } = await supabase
-              .from('challans')
-              .insert([{
-                school_id: DEFAULT_SCHOOL_ID,
-                challan_number: challanNo,
-                student_id: st.id,
-                billing_month: month,
-                issue_date: new Date().toISOString().split('T')[0],
-                due_date: dueDate,
-                base_amount: baseAmount,
-                discount_amount: 0,
-                previous_balance: 0,
-                late_fee: 0,
-                total_amount: baseAmount,
-                status: 'Pending',
-              }])
-              .select()
-              .single()
-
-            if (!insErr && insChallan) {
-              newChallans.push({
-                ...insChallan,
-                challanNo,
-                studentName: st.name,
-                studentPhone: st.phone,
-              })
-
-              await supabase.from('challan_items').insert([
-                { challan_id: insChallan.id, item_name: 'Tuition Fee', amount: 9000 },
-                { challan_id: insChallan.id, item_name: 'Lab & Computer Fee', amount: 1500 },
-                { challan_id: insChallan.id, item_name: 'Activities & Sports Fee', amount: 1000 },
-              ])
-            }
-          }
-
-          await auditService.log({
-            actionType: 'CHALLANS_BATCH_GENERATED',
-            targetEntity: 'challans',
-            details: { month, count: newChallans.length },
-          })
-
-          return newChallans
-        }
-      } catch (err) {
-        console.warn('Supabase generate challans error:', err)
-      }
-    }
-    return []
-  },
-
   async getStats() {
     if (isSupabaseConfigured() && supabase) {
       try {
@@ -223,33 +161,6 @@ export const challanService = {
     }
 
     return { total: 0, paid: 0, pending: 0, overdue: 0, totalAmount: 0, paidAmount: 0 }
-  },
-
-  async cancel(id) {
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        let query = supabase
-          .from('challans')
-          .update({ status: 'Cancelled' })
-
-        if (isUUID(id)) {
-          query = query.or(`id.eq.${id},challan_number.eq.${id}`)
-        } else {
-          query = query.eq('challan_number', id)
-        }
-
-        await query
-      } catch (err) {
-        console.warn('Supabase cancel challan error:', err)
-      }
-    }
-
-    await auditService.log({
-      actionType: 'CHALLAN_CANCELLED',
-      targetEntity: 'challans',
-      details: { challan_id: id },
-    })
-    return { success: true }
   },
 
   async getStudentChallans(studentId = 'STU-2026-00124') {
@@ -311,75 +222,115 @@ export const challanService = {
     return []
   },
 
-  async payStudentChallan(challanId, paymentDetails = {}) {
-    const txnCode = 'TXN-' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-' + Math.floor(1000 + Math.random() * 9000)
-    const paidDate = new Date().toISOString().split('T')[0]
+  // ── WRITE OPERATIONS (routed through backend) ──────────────
+  // These now go through the service-role backend so that:
+  //   - Secret credentials stay on the server
+  //   - PDFs are generated + uploaded automatically
+  //   - Notifications (WhatsApp/SMS/Email) are dispatched
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        let chQuery = supabase
-          .from('challans')
-          .select('id, student_id, total_amount')
+  /**
+   * Batch-generate challans for all active students.
+   * Calls POST /api/challans/generate on the backend.
+   */
+  async generate(month = 'August 2026', dueDate = '2026-08-30') {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/challans/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ month, dueDate }),
+      })
 
-        if (isUUID(challanId)) {
-          chQuery = chQuery.or(`id.eq.${challanId},challan_number.eq.${challanId}`)
-        } else {
-          chQuery = chQuery.eq('challan_number', challanId)
-        }
+      const result = await response.json()
 
-        const { data: ch } = await chQuery.maybeSingle()
-
-        if (ch) {
-          // 2. Update Challan
-          await supabase
-            .from('challans')
-            .update({
-              status: 'Paid',
-              paid_date: paidDate,
-              payment_method: paymentDetails.method || 'Online',
-            })
-            .eq('id', ch.id)
-
-          // 3. Update Student fee status
-          await supabase
-            .from('students')
-            .update({ fee_status: 'Paid' })
-            .eq('id', ch.student_id)
-
-          // 4. Insert Payment Record
-          await supabase
-            .from('payments')
-            .insert([{
-              school_id: DEFAULT_SCHOOL_ID,
-              transaction_code: txnCode,
-              challan_id: ch.id,
-              student_id: ch.student_id,
-              amount_paid: paymentDetails.amount || ch.total_amount,
-              payment_date: paidDate,
-              payment_method: paymentDetails.method || 'Online',
-              reference_number: paymentDetails.referenceNumber || `REF-${Math.floor(10000 + Math.random() * 90000)}`,
-              status: 'Completed',
-            }])
-        }
-      } catch (err) {
-        console.warn('Supabase payStudentChallan error:', err)
+      if (!response.ok) {
+        console.warn('Backend generate failed:', result)
+        return []
       }
+
+      await auditService.log({
+        actionType: 'CHALLANS_BATCH_GENERATED',
+        targetEntity: 'challans',
+        details: { month, count: (result.challans || []).length },
+      })
+
+      return result.challans || []
+    } catch (err) {
+      console.warn('Backend generate error:', err)
+      return []
     }
+  },
 
-    await auditService.log({
-      actionType: 'STUDENT_CHALLAN_PAID',
-      targetEntity: 'challans',
-      targetId: challanId,
-      details: { challanId, transactionId: txnCode, ...paymentDetails },
-    })
+  /**
+   * Cancel a challan via the backend.
+   * Calls PATCH /api/challans/cancel on the backend.
+   */
+  async cancel(id) {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/challans/cancel`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challanId: id }),
+      })
 
-    return {
-      success: true,
-      transactionId: txnCode,
-      paidDate,
-      challanId,
-      amount: paymentDetails.amount,
-      method: paymentDetails.method || 'Online',
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.warn('Backend cancel failed:', result)
+      }
+
+      await auditService.log({
+        actionType: 'CHALLAN_CANCELLED',
+        targetEntity: 'challans',
+        details: { challan_id: id },
+      })
+
+      return { success: result.success || false }
+    } catch (err) {
+      console.warn('Backend cancel error:', err)
+      return { success: false }
+    }
+  },
+
+  /**
+   * Record a payment via the backend.
+   * Calls POST /api/challans/pay on the backend, which:
+   *   - Marks the challan as Paid
+   *   - Inserts a payment record
+   *   - Sends a receipt notification (WhatsApp/SMS/Email)
+   */
+  async payStudentChallan(challanId, paymentDetails = {}) {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/challans/pay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challanId, paymentDetails }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.warn('Backend pay failed:', result)
+        return { success: false }
+      }
+
+      await auditService.log({
+        actionType: 'STUDENT_CHALLAN_PAID',
+        targetEntity: 'challans',
+        targetId: challanId,
+        details: { challanId, ...result },
+      })
+
+      return {
+        success: true,
+        transactionId: result.transactionId,
+        paidDate: result.paidDate,
+        challanId,
+        amount: result.amount,
+        method: result.method || paymentDetails.method || 'Online',
+      }
+    } catch (err) {
+      console.warn('Backend pay error:', err)
+      return { success: false }
     }
   },
 }

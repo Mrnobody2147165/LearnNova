@@ -30,6 +30,19 @@
 
 const { getDb } = require("./db");
 
+const isUUID = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ''));
+
+/**
+ * Build a query filter that matches either the UUID id column
+ * or the challan_number column, depending on the input format.
+ */
+function filterByIdOrNumber(query, idValue) {
+  if (isUUID(idValue)) {
+    return query.eq("id", idValue);
+  }
+  return query.eq("challan_number", String(idValue));
+}
+
 // ────────────────────────────────────────────────────────────
 // HELPERS
 // ────────────────────────────────────────────────────────────
@@ -92,12 +105,10 @@ async function fetchChallanData(challanId) {
   }
 
   try {
-    // Step 1 — Fetch the challan row
-    const { data: challan, error: cErr } = await db
-      .from("challans")
-      .select("*")
-      .eq("id", challanId)
-      .single();
+    // Step 1 — Fetch the chall row (by UUID or challan_number)
+    let chQuery = db.from("challans").select("*");
+    chQuery = filterByIdOrNumber(chQuery, challanId);
+    const { data: challan, error: cErr } = await chQuery.maybeSingle();
 
     if (cErr || !challan) {
       console.error(`[DB Lookup] Challan ${challanId} not found:`, cErr?.message);
@@ -149,12 +160,10 @@ async function fetchGuardianForChallan(challanId) {
   }
 
   try {
-    // Step 1 — Get the challan to find student_id
-    const { data: challan, error: cErr } = await db
-      .from("challans")
-      .select("student_id")
-      .eq("id", challanId)
-      .single();
+    // Step 1 — Get the challan to find student_id (by UUID or challan_number)
+    let chQuery = db.from("challans").select("student_id");
+    chQuery = filterByIdOrNumber(chQuery, challanId);
+    const { data: challan, error: cErr } = await chQuery.maybeSingle();
 
     if (cErr || !challan) {
       console.error(`[DB Lookup] Challan ${challanId} not found for guardian lookup.`);
@@ -169,8 +178,13 @@ async function fetchGuardianForChallan(challanId) {
       .single();
 
     if (sErr || !student || !student.guardian_id) {
-      console.error(`[DB Lookup] Guardian ID not found for student ${challan.student_id}.`);
-      return null;
+      // No guardian linked — fall back to student's own contact
+      console.warn(`[DB Lookup] No guardian for student ${challan.student_id}, using student contact.`);
+      return {
+        phone:         student?.phone || "",
+        email:         student?.email || "",
+        whatsappOptIn: true,
+      };
     }
 
     // Step 3 — Get the guardian
@@ -218,10 +232,9 @@ async function updateChallanPdfUrl(challanId, url) {
   if (!db) return false;
 
   try {
-    const { error } = await db
-      .from("challans")
-      .update({ pdf_url: url })
-      .eq("id", challanId);
+    let updQuery = db.from("challans").update({ pdf_url: url });
+    updQuery = filterByIdOrNumber(updQuery, challanId);
+    const { error } = await updQuery;
 
     if (error) {
       console.error(`[DB] Failed to update challan ${challanId} pdf_url:`, error.message);

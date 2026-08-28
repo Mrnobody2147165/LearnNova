@@ -94,14 +94,12 @@ router.post("/challan", async (req, res) => {
       data = fetchedData;
 
       if (!fetchedRecipient || (!fetchedRecipient.phone && !fetchedRecipient.email)) {
-        console.warn(`[notify/challan] No guardian contact found for challan ${challanId}.`);
-        return res.status(404).json({
-          success: false,
-          errors: [`No guardian contact info found for the student linked to challan ${challanId}.`],
-        });
+        console.warn(`[notify/challan] No guardian contact found for challan ${challanId} — generating PDF only, skipping notifications.`);
+        // Use a dummy recipient so PDF still generates; notifications will gracefully fail
+        recipient = { phone: '', email: '', whatsappOptIn: false };
+      } else {
+        recipient = fetchedRecipient;
       }
-
-      recipient = fetchedRecipient;
     } else {
       // ── Full body mode (backward compatible) ────────────
       recipient = req.body.recipient;
@@ -171,14 +169,11 @@ router.post("/payment", async (req, res) => {
       };
 
       if (!fetchedRecipient || (!fetchedRecipient.phone && !fetchedRecipient.email)) {
-        console.warn(`[notify/payment] No guardian contact found for challan ${challanId}.`);
-        return res.status(404).json({
-          success: false,
-          errors: [`No guardian contact info found for the student linked to challan ${challanId}.`],
-        });
+        console.warn(`[notify/payment] No guardian contact found for challan ${challanId} — generating receipt PDF only, skipping notifications.`);
+        recipient = { phone: '', email: '', whatsappOptIn: false };
+      } else {
+        recipient = fetchedRecipient;
       }
-
-      recipient = fetchedRecipient;
     } else {
       // ── Full body mode (backward compatible) ────────────
       recipient = req.body.recipient;
