@@ -231,7 +231,7 @@ async function sendNotification(type, recipient, data) {
   if (whatsappOptIn && phone) {
     const to = phone.startsWith("whatsapp:") ? phone : `whatsapp:${phone}`;
     tasks.push(
-      sendWhatsApp(to, template.whatsapp(data, pdfLink))
+      sendWhatsApp(to, template.whatsapp(data, pdfLink), pdfLink)
         .then((r) => ({ channel: "whatsapp", result: r }))
     );
   }

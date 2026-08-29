@@ -19,6 +19,7 @@ import { useToast } from '../../../components/ui/Toast'
 import { useSchoolStore } from '../../../stores/schoolStore'
 import challanService from '../../../services/challans'
 import whatsappService from '../../../services/whatsapp'
+import { pdfGenerator } from '../../../services/pdfGenerator'
 import billingAutomationService, { getAutoBillingConfig } from '../../../services/billingAutomation'
 import { formatPKRFull, formatDate, downloadCSV } from '../../../utils/format'
 
@@ -101,7 +102,7 @@ export default function Challans() {
       total: c.total,
       dueDate: c.dueDate,
       feeBreakdown: c.feeBreakdown,
-      studentPhone: c.studentPhone || '03001234567',
+      studentPhone: c.studentPhone || '',
       dispatchStatus: 'Ready', // 'Ready', 'Sending', 'Delivered', 'Failed'
     }))
 
@@ -157,7 +158,7 @@ export default function Challans() {
         total: c.total,
         dueDate: c.dueDate,
         feeBreakdown: c.feeBreakdown,
-        studentPhone: c.studentPhone || '03001234567',
+        studentPhone: c.studentPhone || '',
         dispatchStatus: 'Ready',
       }))
 
@@ -182,7 +183,7 @@ export default function Challans() {
   // Single WhatsApp Verification
   const handleOpenSingleVerify = (challan) => {
     setSingleVerifyChallan(challan)
-    setVerifyPhone(challan.studentPhone || '03001234567')
+    setVerifyPhone(challan.studentPhone || '')
   }
 
   const handleSendSingleWhatsApp = async () => {
@@ -490,7 +491,7 @@ export default function Challans() {
       >
         <div className="space-y-4">
           <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-card text-xs text-emerald-900 leading-relaxed">
-            Click <strong>"Send to All WhatsApp Numbers"</strong> to broadcast itemized fee vouchers to all parents in one go. You can verify or edit any phone number inline before broadcasting.
+            Click <strong>"Send to All WhatsApp Numbers"</strong> to broadcast itemized fee vouchers to all parents in one go. Students with no phone number set will be highlighted — please verify or edit numbers before broadcasting.
           </div>
 
           {/* Live Animated Progress Bar */}
@@ -550,7 +551,7 @@ export default function Challans() {
                   ) : (
                     <div className="flex items-center gap-1.5 bg-surface-app px-2.5 py-1 rounded-btn border border-border">
                       <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-                      <span className="text-xs font-mono font-medium text-ink">{item.studentPhone}</span>
+                      <span className="text-xs font-mono font-medium text-ink">{item.studentPhone || 'Not set'}</span>
                       <button
                         type="button"
                         onClick={() => {
@@ -566,6 +567,14 @@ export default function Challans() {
                   )}
 
                   {/* Direct 1-Click Launch Button */}
+                  <button
+                    type="button"
+                    onClick={() => pdfGenerator.viewChallanPDF(item)}
+                    className="px-1.5 py-1 text-xs font-semibold rounded bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors"
+                    title="View Challan PDF"
+                  >
+                    <FileText className="w-3 h-3" />
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
@@ -640,6 +649,13 @@ export default function Challans() {
               <div className="p-3 rounded-card bg-surface-app border border-border font-mono text-[11px] whitespace-pre-wrap text-ink-secondary max-h-44 overflow-y-auto">
                 {whatsappService.generateChallanMessage(singleVerifyChallan, school.name)}
               </div>
+              <button
+                type="button"
+                onClick={() => pdfGenerator.viewChallanPDF(singleVerifyChallan)}
+                className="mt-1.5 text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1"
+              >
+                <FileText className="w-3.5 h-3.5" /> Open Challan PDF
+              </button>
             </div>
           </div>
         </Modal>

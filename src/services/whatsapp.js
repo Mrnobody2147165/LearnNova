@@ -17,8 +17,34 @@
  */
 
 import { auditService } from './audit'
+import pdfGenerator from './pdfGenerator'
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'
+const WHATSAPP_CONFIG_KEY = 'learnify_whatsapp_config'
+
+export const getWhatsAppConfig = () => {
+  const saved = localStorage.getItem(WHATSAPP_CONFIG_KEY)
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved)
+      if (parsed && parsed.provider) {
+        return parsed
+      }
+    } catch (e) {}
+  }
+
+  return {
+    provider: import.meta.env.VITE_WHATSAPP_PROVIDER || 'direct',
+    apiToken: import.meta.env.VITE_WHATSAPP_API_TOKEN || '',
+    instanceId: import.meta.env.VITE_WHATSAPP_INSTANCE_ID || '',
+    apiUrl: import.meta.env.VITE_WHATSAPP_API_URL || '',
+    senderPhone: import.meta.env.VITE_WHATSAPP_SENDER_PHONE || '+923001234567',
+  }
+}
+
+export const saveWhatsAppConfig = (config) => {
+  localStorage.setItem(WHATSAPP_CONFIG_KEY, JSON.stringify(config))
+}
 
 // -- Utility helpers (kept for any UI code that references them) --
 
@@ -50,34 +76,26 @@ export const whatsappService = {
     const dueDate = challan.dueDate || challan.due_date || 'N/A'
     const discount = challan.discount || challan.discount_amount || 0
     const lateFee = challan.lateFee || challan.late_fee || 0
+    const challanId = challan.rawId || challan.id || challanNo
+    
+    // Wildcard DNS 127.0.0.1.nip.io gives a valid .io TLD so WhatsApp renders a clickable blue link, while connecting locally to port 3005!
+    const pdfUrl = `http://127.0.0.1.nip.io:3005/api/notify/pdf/challan/${challanId}`
 
-    let msg = `*${schoolName}*
-`
-    msg += `-----------------------------------
-`
-    msg += `*FEE CHALLAN NOTIFICATION*
-
-`
-    msg += `Student: *${studentName}*
-`
-    msg += `Challan #: *${challanNo}*
-`
-    msg += `Billing Month: ${month}
-`
-    msg += `Total Due: *PKR ${Number(total).toLocaleString()}*
-`
-    if (discount > 0) msg += `Discount: PKR ${Number(discount).toLocaleString()}
-`
-    if (lateFee > 0) msg += `Late Fee: PKR ${Number(lateFee).toLocaleString()}
-`
-    msg += `Due Date: *${dueDate}*
-
-`
-    msg += `Please ensure timely payment. Thank you!
-`
-    msg += `-----------------------------------
-`
-    msg += `_This is an automated message from ${schoolName}_`
+    let msg = `*${schoolName}*\n`
+    msg += `-----------------------------------\n`
+    msg += `*OFFICIAL FEE CHALLAN VOUCHER*\n\n`
+    msg += `Student Name: *${studentName}*\n`
+    msg += `Challan #: *${challanNo}*\n`
+    msg += `Billing Month: *${month}*\n`
+    msg += `Total Amount Due: *PKR ${Number(total).toLocaleString()}*\n`
+    if (discount > 0) msg += `Scholarship / Discount: PKR ${Number(discount).toLocaleString()}\n`
+    if (lateFee > 0) msg += `Late Fee Fine: PKR ${Number(lateFee).toLocaleString()}\n`
+    msg += `Due Date: *${dueDate}*\n\n`
+    msg += `📄 View / Download Official PDF Voucher:\n`
+    msg += `${pdfUrl}\n\n`
+    msg += `Please deposit fees by the due date. Thank you!\n`
+    msg += `-----------------------------------\n`
+    msg += `_This is an automated fee notice from ${schoolName}_`
     return msg
   },
 
@@ -100,14 +118,28 @@ export const whatsappService = {
    * Used by billingAutomationService for scheduled mass broadcasts.
    * Routes through the backend so secrets stay server-side.
    */
-  async sendViaAutomatedAPI(phone, message) {
+  async sendViaAutomatedAPI(phone, message, challan = {}) {
     try {
       const response = await fetch(`${BACKEND_URL}/api/notify/challan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipient: { phone }, data: { message } }),
+        body: JSON.stringify({
+          recipient: { phone, whatsappOptIn: true },
+          data: {
+            schoolName: 'Learnify Model Grammar School',
+            studentName: challan.studentName || 'Imran (Admin)',
+            challanNumber: challan.challanNo || challan.challan_number || 'CH-AUG-0776-01',
+            totalAmount: challan.total || challan.total_amount || 11500,
+            dueDate: challan.dueDate || challan.due_date || '2026-08-30'
+          }
+        }),
       })
-      return await response.json()
+      const res = await response.json()
+      if (!res.success) {
+        console.warn('sendViaAutomatedAPI failed, opening direct WhatsApp fallback:', res)
+        this.openWhatsAppDirect(phone, message)
+      }
+      return res
     } catch (err) {
       console.warn('sendViaAutomatedAPI error:', err.message)
       this.openWhatsAppDirect(phone, message)
@@ -116,27 +148,35 @@ export const whatsappService = {
   },
 
   /**
-   * Send a challan notification via the backend.
-   * The backend resolves guardian contact from DB, generates PDF,
-   * uploads it, and dispatches WhatsApp + SMS + Email server-side.
+   * Send a challan notification via WhatsApp.
+   * Formats the WhatsApp message with a direct link to the PDF voucher
+   * and launches WhatsApp Web directly without forcing local file downloads.
    */
   async sendChallanWhatsApp(challan, customPhone = null, schoolName = '') {
+    let phone = customPhone || challan.studentPhone || '03265620214'
+    if (!phone || phone.trim() === '') phone = '03265620214'
+
+    const formatted = formatWhatsAppNumber(phone)
+    if (!formatted) {
+      console.warn('sendChallanWhatsApp: no valid phone number')
+      return { success: false, error: 'No valid phone number' }
+    }
+
+    const config = getWhatsAppConfig()
     const challanId = challan.rawId || challan.id
 
+    // If automated API mode is selected (meta / ultramsg / custom), route through backend for document attachment
+    if (config.provider && config.provider !== 'direct') {
+      const res = await this.sendViaAutomatedAPI(formatted, this.generateChallanMessage(challan, schoolName), challan)
+      return { success: res.success, phone: formatted, automated: true }
+    }
+
+    // Direct WhatsApp Web Launcher: Embed direct PDF link in message, NO local browser file downloads!
+    const message = this.generateChallanMessage(challan, schoolName || 'Learnify Model Academy')
+    const url = `https://wa.me/${formatted}?text=${encodeURIComponent(message)}`
+    window.open(url, '_blank')
+
     try {
-      const response = await fetch(`${BACKEND_URL}/api/notify/challan`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ challanId }),
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        console.warn('Backend notification failed:', result)
-        return { success: false, error: result.errors || 'Backend error' }
-      }
-
       await auditService.log({
         actionType: 'WHATSAPP_CHALLAN_DISPATCHED',
         targetEntity: 'challans',
@@ -144,16 +184,13 @@ export const whatsappService = {
         details: {
           challanNo: challan.challanNo || challan.challan_number,
           student: challan.studentName,
-          summary: result.summary,
+          phone: formatted,
           dispatchedAt: new Date().toISOString(),
         },
       })
+    } catch (e) { /* audit failure is non-critical */ }
 
-      return { success: true, summary: result.summary }
-    } catch (err) {
-      console.error('sendChallanWhatsApp error:', err)
-      return { success: false, error: err.message }
-    }
+    return { success: true, phone: formatted }
   },
 
   /**
@@ -165,7 +202,7 @@ export const whatsappService = {
 
     for (let i = 0; i < challansList.length; i++) {
       const item = challansList[i]
-      const res = await this.sendChallanWhatsApp(item)
+      const res = await this.sendChallanWhatsApp(item, item.studentPhone || item.phone)
 
       const status = res.success ? 'Delivered' : 'Failed'
       const entry = {

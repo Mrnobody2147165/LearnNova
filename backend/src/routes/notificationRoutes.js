@@ -100,6 +100,12 @@ router.post("/challan", async (req, res) => {
       } else {
         recipient = fetchedRecipient;
       }
+
+      // ── Phone override: if request includes a phone, use it ──
+      if (req.body.phone) {
+        console.log(`[notify/challan] Using phone override from request: ${req.body.phone}`);
+        recipient = { ...recipient, phone: req.body.phone };
+      }
     } else {
       // ── Full body mode (backward compatible) ────────────
       recipient = req.body.recipient;
@@ -125,6 +131,40 @@ router.post("/challan", async (req, res) => {
       success: false,
       errors: ["An internal error occurred while sending notifications."],
     });
+  }
+});
+
+// ── POST /api/notify/pdf/challan — Direct PDF download (no Storage needed) ──
+router.post("/pdf/challan", async (req, res) => {
+  try {
+    const { challanId } = req.body;
+    if (!challanId) {
+      return res.status(400).json({ success: false, errors: ["challanId is required."] });
+    }
+
+    console.log(`[pdf/challan] Generating PDF for challan ${challanId}...`);
+    const data = await fetchChallanData(challanId);
+
+    if (!data) {
+      return res.status(404).json({ success: false, errors: [`Challan ${challanId} not found.`] });
+    }
+
+    const { generateChallanPDF } = require("../services/pdfGenerator");
+    const pdfBuffer = await generateChallanPDF(data);
+
+    // Return as base64 data URL — works without Storage
+    const base64 = pdfBuffer.toString("base64");
+    const dataUrl = `data:application/pdf;base64,${base64}`;
+
+    console.log(`[pdf/challan] PDF generated: ${pdfBuffer.length} bytes`);
+    return res.json({
+      success: true,
+      pdfBase64: dataUrl,
+      filename: `challan-${data.challanNumber}.pdf`,
+    });
+  } catch (err) {
+    console.error("[pdf/challan] Error:", err.message);
+    return res.status(500).json({ success: false, errors: [err.message] });
   }
 });
 
@@ -205,6 +245,30 @@ router.post("/payment", async (req, res) => {
       success: false,
       errors: ["An internal error occurred while sending notifications."],
     });
+  }
+});
+
+
+// ── GET /api/pdf/challan/:challanId — Serve PDF directly ──
+router.get("/pdf/challan/:challanId", async (req, res) => {
+  try {
+    const { challanId } = req.params;
+    console.log(`[GET pdf/challan] Generating PDF for ${challanId}...`);
+
+    const data = await fetchChallanData(challanId);
+    if (!data) {
+      return res.status(404).json({ success: false, errors: ["Challan not found."] });
+    }
+
+    const { generateChallanPDF } = require("../services/pdfGenerator");
+    const pdfBuffer = await generateChallanPDF(data);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="challan-${data.challanNumber}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error("[GET pdf/challan] Error:", err.message);
+    res.status(500).json({ success: false, errors: [err.message] });
   }
 });
 

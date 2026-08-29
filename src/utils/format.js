@@ -46,18 +46,28 @@ export const cn = (...classes) => {
 }
 
 export const downloadCSV = (filename, rows) => {
-  if (!rows || rows.length === 0) return
+  if (!rows || rows.length === 0) { console.warn('[CSV] No data to export'); return }
   const headers = Object.keys(rows[0])
+  const escapeCSV = (val) => {
+    const str = String(val ?? '')
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return '"' + str.replace(/"/g, '""') + '"'
+    }
+    return str
+  }
   const csvContent = [
     headers.join(','),
-    ...rows.map(row => headers.map(h => `"${row[h] ?? ''}"`).join(','))
-  ].join('\n')
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    ...rows.map(row => headers.map(h => escapeCSV(row[h])).join(','))
+  ].join('\r\n')
+  // Add BOM for proper UTF-8 encoding in Excel
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
   const link = document.createElement('a')
   link.href = URL.createObjectURL(blob)
   link.download = filename
+  document.body.appendChild(link)
   link.click()
-  URL.revokeObjectURL(link.href)
+  document.body.removeChild(link)
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000)
 }
 
 export const todayISO = () => new Date().toISOString().split('T')[0]
