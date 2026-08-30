@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Environment variables
+# .env files are intentionally tracked so team members get the config
+!.env
+!.env.*
+.env.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
