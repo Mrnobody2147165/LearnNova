@@ -3,26 +3,18 @@
  * Learnify AI Assistant — Express Routes
  * ============================================================
  *
- * Two POST endpoints:
- *   POST /api/ai/ask                → Q&A grounded in school policy
- *   POST /api/ai/interpret-document → extract structured fee data
- *
- * Both follow the same flow:
- *   1. Validate request body
- *   2. Call the AI service
- *   3. Return the result as JSON
- *
- * ── Expected request shapes ───────────────────────────────
- *
  * POST /api/ai/ask
  * {
- *   "question": "What is the late fee policy?",
- *   "context": "Optional policy text for grounding..."
+ *   "question": "Who hasn't paid their fees?",
+ *   "history": [                         ← optional, last N turns
+ *     { "role": "user",      "text": "..." },
+ *     { "role": "assistant", "text": "..." }
+ *   ]
  * }
  *
  * POST /api/ai/interpret-document
  * {
- *   "documentText": "Fee notice for Grade 8-A... Tuition 15000..."
+ *   "documentText": "Fee notice for Grade 8-A..."
  * }
  */
 
@@ -34,28 +26,35 @@ const router = Router();
 // ── POST /api/ai/ask ────────────────────────────────────────
 router.post("/ask", async (req, res) => {
   try {
-    // Step 1 — Validate
-    const errors = [];
-    const { question, context } = req.body;
+    const { question, history } = req.body;
 
     if (!question || typeof question !== "string" || question.trim() === "") {
-      errors.push('"question" is required and must be a non-empty string.');
+      return res.status(400).json({
+        success: false,
+        errors: ['"question" is required and must be a non-empty string.'],
+      });
     }
 
-    if (errors.length > 0) {
-      return res.status(400).json({ success: false, errors });
-    }
+    // Sanitise history: accept array of {role, text} objects, ignore anything else
+    const safeHistory = Array.isArray(history)
+      ? history
+          .filter(m => m && typeof m.text === "string" && (m.role === "user" || m.role === "assistant"))
+          .slice(-10) // cap at 10 turns to keep prompt size reasonable
+      : [];
 
-    // Step 2 — Call AI service
-    const result = await askAssistant(question.trim(), context || null);
+    const result = await askAssistant(question.trim(), safeHistory);
 
-    // Step 3 — Return result
-    return res.json({ success: true, ...result });
+    return res.json({
+      success: true,
+      answer:  result.answer,
+      source:  result.source,
+      actions: result.actions || [],
+    });
   } catch (err) {
-    console.error("[ai/ask] Error:", err.message);
+    console.error("[ai/ask] Unhandled error:", err.message);
     return res.status(500).json({
       success: false,
-      errors: ["An internal error occurred while processing your question."],
+      errors:  ["An internal error occurred while processing your question."],
     });
   }
 });
@@ -63,28 +62,23 @@ router.post("/ask", async (req, res) => {
 // ── POST /api/ai/interpret-document ─────────────────────────
 router.post("/interpret-document", async (req, res) => {
   try {
-    // Step 1 — Validate
-    const errors = [];
     const { documentText } = req.body;
 
     if (!documentText || typeof documentText !== "string" || documentText.trim() === "") {
-      errors.push('"documentText" is required and must be a non-empty string.');
+      return res.status(400).json({
+        success: false,
+        errors:  ['"documentText" is required and must be a non-empty string.'],
+      });
     }
 
-    if (errors.length > 0) {
-      return res.status(400).json({ success: false, errors });
-    }
-
-    // Step 2 — Call AI service
     const result = await interpretDocument(documentText.trim());
 
-    // Step 3 — Return result
     return res.json({ success: true, ...result });
   } catch (err) {
-    console.error("[ai/interpret-document] Error:", err.message);
+    console.error("[ai/interpret-document] Unhandled error:", err.message);
     return res.status(500).json({
       success: false,
-      errors: ["An internal error occurred while interpreting the document."],
+      errors:  ["An internal error occurred while interpreting the document."],
     });
   }
 });
