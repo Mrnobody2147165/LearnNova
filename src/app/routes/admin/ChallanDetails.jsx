@@ -37,7 +37,7 @@ export default function ChallanDetails() {
   }, [id])
 
   if (loading) return <LoadingState />
-  if (!challan) return <EmptyState title="Challan not found" description="The challan you're looking for doesn't exist." action={<Button onClick={() => navigate('/challans')}>Back to Challans</Button>} />
+  if (!challan) return <EmptyState title="Challan not found" description="The challan you're looking for doesn't exist." action={<Button onClick={() => navigate('/admin/challans')}>Back to Challans</Button>} />
 
   const subtotal = (challan.feeBreakdown || []).reduce((sum, item) => sum + (item.amount || 0), 0)
 
@@ -64,7 +64,7 @@ export default function ChallanDetails() {
 
   return (
     <div>
-      <button onClick={() => navigate('/challans')} className="flex items-center gap-1.5 text-sm text-ink-secondary hover:text-ink mb-4 transition-colors">
+      <button onClick={() => navigate('/admin/challans')} className="flex items-center gap-1.5 text-sm text-ink-secondary hover:text-ink mb-4 transition-colors">
         <ArrowLeft className="w-4 h-4" />
         Back to Challans
       </button>

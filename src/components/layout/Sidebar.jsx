@@ -2,7 +2,8 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, GraduationCap,
   Wallet, FileText, CreditCard, CalendarCheck, BookMarked,
-  BarChart3, Sparkles, Settings, LogOut, X
+  BarChart3, Sparkles, Settings, LogOut, X,
+  MessageSquare, School, UserCheck, BookOpen, ClipboardList, Award
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useSchoolStore } from '../../stores/schoolStore'
@@ -11,30 +12,42 @@ import { cn } from '../../utils/format'
 const navSections = [
   {
     items: [
-      { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { to: '/students', label: 'Students', icon: Users },
+      { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { to: '/admin/students', label: 'Students', icon: Users },
+    ],
+  },
+  {
+    label: 'Management',
+    items: [
+      { to: '/admin/classes', label: 'Classes', icon: School },
     ],
   },
   {
     label: 'Academics',
     items: [
-      { to: '/attendance', label: 'Attendance', icon: CalendarCheck },
-      { to: '/homework', label: 'Homework', icon: BookMarked },
+      { to: '/admin/attendance', label: 'Attendance', icon: CalendarCheck },
+      { to: '/admin/homework', label: 'Homework', icon: BookMarked },
     ],
   },
   {
     label: 'Finance',
     items: [
-      { to: '/fees', label: 'Fees', icon: Wallet },
-      { to: '/challans', label: 'E-Challans', icon: FileText },
-      { to: '/payments', label: 'Payments', icon: CreditCard },
+      { to: '/admin/fees', label: 'Fees', icon: Wallet },
+      { to: '/admin/challans', label: 'E-Challans', icon: FileText },
+      { to: '/admin/payments', label: 'Payments', icon: CreditCard },
+    ],
+  },
+  {
+    label: 'Communications',
+    items: [
+      { to: '/admin/messages', label: 'Messages', icon: MessageSquare },
     ],
   },
   {
     label: 'Insights',
     items: [
-      { to: '/reports', label: 'Reports', icon: BarChart3 },
-      { to: '/ai-assistant', label: 'AI Assistant', icon: Sparkles },
+      { to: '/admin/reports', label: 'Reports', icon: BarChart3 },
+      { to: '/admin/ai-assistant', label: 'AI Assistant', icon: Sparkles },
     ],
   },
 ]
@@ -103,7 +116,7 @@ export default function Sidebar({ mobileOpen, onCloseMobile }) {
       {/* Bottom */}
       <div className="px-3 py-3 border-t border-border space-y-0.5">
         <NavLink
-          to="/settings"
+          to="/admin/settings"
           onClick={onCloseMobile}
           className={({ isActive }) => cn('nav-item', isActive && 'nav-item-active')}
         >

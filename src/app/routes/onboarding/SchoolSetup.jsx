@@ -62,7 +62,7 @@ export default function SchoolSetup() {
       },
     })
     toast.success('School setup complete!')
-    navigate('/dashboard')
+    navigate('/admin/dashboard')
   }
 
   return (

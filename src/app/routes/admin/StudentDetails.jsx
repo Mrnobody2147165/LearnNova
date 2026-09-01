@@ -56,7 +56,7 @@ export default function StudentDetails() {
   }, [id])
 
   if (loading) return <LoadingState />
-  if (!student) return <EmptyState title="Student not found" description="The student you're looking for doesn't exist." action={<Button onClick={() => navigate('/students')}>Back to Students</Button>} />
+  if (!student) return <EmptyState title="Student not found" description="The student you're looking for doesn't exist." action={<Button onClick={() => navigate('/admin/students')}>Back to Students</Button>} />
 
   const studentChallans = challans.length > 0 ? challans : (student.challans || [])
   const paidChallans = studentChallans.filter(c => c.status === 'Paid')
@@ -89,7 +89,7 @@ export default function StudentDetails() {
 
   return (
     <div>
-      <button onClick={() => navigate('/students')} className="flex items-center gap-1.5 text-sm text-ink-secondary hover:text-ink mb-4 transition-colors">
+      <button onClick={() => navigate('/admin/students')} className="flex items-center gap-1.5 text-sm text-ink-secondary hover:text-ink mb-4 transition-colors">
         <ArrowLeft className="w-4 h-4" />
         Back to Students
       </button>

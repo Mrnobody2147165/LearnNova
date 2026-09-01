@@ -247,4 +247,89 @@ export const pdfGenerator = {
   },
 }
 
+/**
+ * Generate a Class information PDF using current data passed explicitly.
+ * No stale lookups — data must be the live class object from state.
+ */
+export function generateClassPDF(classData) {
+  if (!classData) throw new Error('No class data provided')
+
+  const doc = new jsPDF()
+
+  // Header
+  doc.setFillColor(22, 163, 74) // #16A34A
+  doc.rect(0, 0, 210, 35, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(18)
+  doc.setFont('helvetica', 'bold')
+  doc.text('CLASS REPORT', 105, 16, { align: 'center' })
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'normal')
+  doc.text(String(classData.name || 'Class').toUpperCase(), 105, 26, { align: 'center' })
+
+  // Class Info
+  doc.setTextColor(30, 41, 59)
+  let y = 48
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Class Information', 14, y)
+  y += 8
+
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+
+  const info = [
+    ['Class Name', classData.name || 'N/A'],
+    ['Sections', (classData.sections || []).join(', ') || 'N/A'],
+    ['Class Teacher', classData.teacher || 'Not Assigned'],
+    ['Academic Year', classData.academicYear || 'N/A'],
+    ['Student Count', String(classData.studentCount || 0)],
+    ['Capacity', String(classData.capacity || 'N/A')],
+    ['Status', classData.status || 'Active'],
+  ]
+
+  info.forEach(([label, value]) => {
+    doc.setFont('helvetica', 'bold')
+    doc.text(`${label}:`, 14, y)
+    doc.setFont('helvetica', 'normal')
+    doc.text(String(value), 70, y)
+    y += 7
+  })
+
+  // Subjects
+  y += 6
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(12)
+  doc.text('Subjects', 14, y)
+  y += 8
+
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  const subjects = classData.subjects || []
+  if (subjects.length === 0) {
+    doc.text('No subjects assigned', 14, y)
+    y += 7
+  } else {
+    subjects.forEach((sub, i) => {
+      doc.text(`${i + 1}. ${sub}`, 18, y)
+      y += 7
+    })
+  }
+
+  // Footer
+  y = Math.max(y + 15, 260)
+  doc.setDrawColor(226, 232, 240)
+  doc.line(14, y, 196, y)
+  y += 6
+  doc.setTextColor(100, 116, 139)
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'italic')
+  doc.text(`Generated on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, 14, y)
+  doc.text('Learnify — Class Report', 196, y, { align: 'right' })
+
+  const filename = `${(classData.name || 'class').replace(/\s+/g, '_')}_report.pdf`
+  doc.save(filename)
+  return filename
+}
+
 export default pdfGenerator

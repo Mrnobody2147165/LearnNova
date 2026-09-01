@@ -56,7 +56,7 @@ export default function Fees() {
         title="Fees"
         subtitle="Manage fee structures, discounts, and scholarships"
         actions={
-          <Button onClick={() => navigate('/fees/structure')}>
+          <Button onClick={() => navigate('/admin/fees/structure')}>
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Manage Structures</span>
           </Button>
@@ -75,7 +75,7 @@ export default function Fees() {
       <Card padding={false} className="mb-6">
         <div className="flex items-center justify-between p-5 border-b border-border">
           <h3 className="text-base font-semibold text-ink">Fee Structures</h3>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/fees/structure')}>Manage <ArrowRight className="w-3.5 h-3.5" /></Button>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/admin/fees/structure')}>Manage <ArrowRight className="w-3.5 h-3.5" /></Button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-5">
           {(structures || []).map(fs => (

@@ -83,7 +83,7 @@ export default function Dashboard() {
         title={`${greeting}, ${userName}.`}
         subtitle="Here's what's happening across Learnify today."
         actions={
-          <Button onClick={() => navigate('/students')}>
+          <Button onClick={() => navigate('/admin/students')}>
             <Plus className="w-4 h-4" />
             Add Student
           </Button>
@@ -130,7 +130,7 @@ export default function Dashboard() {
               <h3 className="text-base font-semibold text-ink">Fee Collection</h3>
               <p className="text-sm text-ink-secondary">Monthly collection vs target (Rate: {metrics.collectionRate}%)</p>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/reports')}>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/admin/reports')}>
               View Reports
               <ArrowRight className="w-3.5 h-3.5" />
             </Button>
@@ -167,7 +167,7 @@ export default function Dashboard() {
         <Card>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-base font-semibold text-ink">Attendance Summary</h3>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/attendance')}>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/admin/attendance')}>
               View
               <ArrowRight className="w-3.5 h-3.5" />
             </Button>
@@ -207,7 +207,7 @@ export default function Dashboard() {
         <Card>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-base font-semibold text-ink">Active Homework</h3>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/homework')}>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/admin/homework')}>
               View All
               <ArrowRight className="w-3.5 h-3.5" />
             </Button>
@@ -271,7 +271,7 @@ export default function Dashboard() {
       <Card>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold text-ink">Recent Payments</h3>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/payments')}>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/admin/payments')}>
             View All
             <ArrowRight className="w-3.5 h-3.5" />
           </Button>

@@ -1,27 +1,38 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, CalendarCheck,
-  ClipboardList, User, LogOut, X, Wallet, GraduationCap as Logo
+  ClipboardList, User, LogOut, X, Wallet, GraduationCap as Logo,
+  BookOpen, Award, FileText, TrendingUp, Calendar, Bell
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
+import { useNotificationStore } from '../../stores/notificationStore'
 import { cn } from '../../utils/format'
 
 const navItems = [
   { to: '/student/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/student/subjects', label: 'My Subjects', icon: BookOpen },
+  { to: '/student/grades', label: 'Grades', icon: Award },
+  { to: '/student/exams', label: 'Exams', icon: FileText },
   { to: '/student/attendance', label: 'Attendance', icon: CalendarCheck },
   { to: '/student/homework', label: 'Homework', icon: ClipboardList },
+  { to: '/student/progress', label: 'Progress', icon: TrendingUp },
+  { to: '/student/schedule', label: 'Schedule', icon: Calendar },
   { to: '/student/fees', label: 'Fees & Challans', icon: Wallet },
+  { to: '/student/notifications', label: 'Notifications', icon: Bell, badge: true },
   { to: '/student/profile', label: 'Profile', icon: User },
 ]
 
 export default function StudentSidebar({ mobileOpen, onCloseMobile }) {
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
+  const { unreadCount } = useNotificationStore()
 
   const handleLogout = async () => {
     await logout()
     navigate('/login')
   }
+
+  const unread = unreadCount()
 
   const content = (
     <div className="flex flex-col h-full">
@@ -46,13 +57,14 @@ export default function StudentSidebar({ mobileOpen, onCloseMobile }) {
       {/* User info */}
       <div className="px-5 py-3 border-b border-border">
         <p className="text-sm font-medium text-ink truncate">{user?.name || 'Student'}</p>
-        <p className="text-xs text-ink-muted truncate">{user?.studentId || ''} • Class {user?.class || ''}-{user?.section || ''}</p>
+        <p className="text-xs text-ink-muted truncate">{user?.studentId || ''} &bull; Class {user?.class || ''}-{user?.section || ''}</p>
       </div>
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
         {navItems.map(item => {
           const Icon = item.icon
+          const badgeCount = item.badge ? unread : 0
           return (
             <NavLink
               key={item.to}
@@ -63,7 +75,12 @@ export default function StudentSidebar({ mobileOpen, onCloseMobile }) {
               }
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate">{item.label}</span>
+              <span className="truncate flex-1">{item.label}</span>
+              {badgeCount > 0 && (
+                <span className="ml-auto w-5 h-5 bg-danger text-white text-[10px] font-bold rounded-full flex items-center justify-center flex-shrink-0">
+                  {badgeCount > 9 ? '9+' : badgeCount}
+                </span>
+              )}
             </NavLink>
           )
         })}

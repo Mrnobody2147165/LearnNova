@@ -1,24 +1,43 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Mail, Lock, GraduationCap, Eye, EyeOff } from 'lucide-react'
+import { Mail, Lock, GraduationCap, Eye, EyeOff, Shield } from 'lucide-react'
 import { useAuthStore } from '../../../stores/authStore'
 import { useToast } from '../../../components/ui/Toast'
 import Input from '../../../components/ui/Input'
 import Button from '../../../components/ui/Button'
+import { cn } from '../../../utils/format'
+
+const ADMIN_EMAIL = 'admin@learnify.com'
 
 export default function Login() {
   const navigate = useNavigate()
   const { login, loading } = useAuthStore()
   const toast = useToast()
-  const [email, setEmail] = useState('')
+  const [role, setRole] = useState('admin')
+  const [email, setEmail] = useState('admin@learnify.com')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState({})
+
+  const handleRoleChange = (newRole) => {
+    setRole(newRole)
+    setErrors({})
+    if (newRole === 'admin') {
+      setEmail('admin@learnify.com')
+    } else {
+      setEmail('')
+    }
+    setPassword('')
+  }
 
   const validate = () => {
     const errs = {}
     if (!email) errs.email = 'Email is required'
     else if (!email.includes('@')) errs.email = 'Please enter a valid email'
+
+    if (role === 'admin' && email !== ADMIN_EMAIL) {
+      errs.email = 'Only authorized admin credentials are accepted'
+    }
     if (!password) errs.password = 'Password is required'
     setErrors(errs)
     return Object.keys(errs).length === 0
@@ -31,7 +50,7 @@ export default function Login() {
       const user = await login(email, password)
       toast.success('Welcome back! Login successful.')
       if (user.role === 'admin') {
-        navigate('/dashboard')
+        navigate('/admin/dashboard')
       } else {
         navigate('/student/dashboard')
       }
@@ -51,6 +70,36 @@ export default function Login() {
           <p className="text-sm text-ink-secondary mt-1">Sign in to Learnify</p>
         </div>
 
+        {/* Role Toggle */}
+        <div className="flex items-center p-1 bg-white border border-border rounded-card mb-5 gap-1">
+          <button
+            type="button"
+            onClick={() => handleRoleChange('admin')}
+            className={cn(
+              'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-btn text-sm font-semibold transition-all duration-150',
+              role === 'admin'
+                ? 'bg-primary text-white shadow-sm'
+                : 'text-ink-secondary hover:text-ink hover:bg-surface-hover'
+            )}
+          >
+            <Shield className="w-4 h-4" />
+            Admin
+          </button>
+          <button
+            type="button"
+            onClick={() => handleRoleChange('student')}
+            className={cn(
+              'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-btn text-sm font-semibold transition-all duration-150',
+              role === 'student'
+                ? 'bg-primary text-white shadow-sm'
+                : 'text-ink-secondary hover:text-ink hover:bg-surface-hover'
+            )}
+          >
+            <GraduationCap className="w-4 h-4" />
+            Student
+          </button>
+        </div>
+
         <div className="card p-6">
           {errors.form && (
             <div className="mb-4 p-3 rounded-btn bg-danger-bg text-danger text-sm">
@@ -61,12 +110,13 @@ export default function Login() {
             <Input
               label="Email"
               type="email"
-              placeholder="admin@learnify.com"
+              placeholder={role === 'admin' ? 'admin@learnify.com' : 'student@email.com'}
               icon={Mail}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               error={errors.email}
               autoComplete="email"
+              disabled={role === 'admin'}
             />
             <div className="relative">
               <Input
@@ -100,20 +150,24 @@ export default function Login() {
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? 'Signing in...' : `Sign in as ${role === 'admin' ? 'Admin' : 'Student'}`}
             </Button>
           </form>
 
-          <p className="text-center text-sm text-ink-secondary mt-4">
-            Don't have an account?{' '}
-            <Link to="/signup" className="text-primary hover:underline font-medium">
-              Sign up
-            </Link>
-          </p>
+          {role === 'student' && (
+            <p className="text-center text-sm text-ink-secondary mt-4">
+              Don't have an account?{' '}
+              <Link to="/signup" className="text-primary hover:underline font-medium">
+                Sign up
+              </Link>
+            </p>
+          )}
         </div>
 
         <p className="text-center text-xs text-ink-muted mt-6">
-          Admin demo: admin@learnify.com / learnify
+          {role === 'admin'
+            ? 'Admin demo: admin@learnify.com / learnify'
+            : 'Register as a student to access the student portal'}
         </p>
       </div>
     </div>

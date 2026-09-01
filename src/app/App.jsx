@@ -25,6 +25,8 @@ const Homework = lazy(() => import('./routes/admin/Homework'))
 const Reports = lazy(() => import('./routes/admin/Reports'))
 const AIAssistant = lazy(() => import('./routes/admin/AIAssistant'))
 const Settings = lazy(() => import('./routes/admin/Settings'))
+const Messages = lazy(() => import('./routes/admin/Messages'))
+const Classes = lazy(() => import('./routes/admin/Classes'))
 
 // Student pages
 const StudentDashboard = lazy(() => import('./routes/student/StudentDashboard'))
@@ -33,20 +35,38 @@ const StudentHomework = lazy(() => import('./routes/student/StudentHomework'))
 const StudentHomeworkDetails = lazy(() => import('./routes/student/StudentHomeworkDetails'))
 const StudentFees = lazy(() => import('./routes/student/StudentFees'))
 const StudentProfile = lazy(() => import('./routes/student/StudentProfile'))
+const StudentNotifications = lazy(() => import('./routes/student/StudentNotifications'))
+const StudentSubjects = lazy(() => import('./routes/student/StudentSubjects'))
+const StudentGrades = lazy(() => import('./routes/student/StudentGrades'))
+const StudentExams = lazy(() => import('./routes/student/StudentExams'))
+const StudentProgress = lazy(() => import('./routes/student/StudentProgress'))
+const StudentSchedule = lazy(() => import('./routes/student/StudentSchedule'))
 
-function ProtectedRoute({ children, role }) {
-  const { isAuthenticated, user, switchRole } = useAuthStore()
-  if (!isAuthenticated) return <Navigate to="/login" replace />
-  if (role && user?.role && user.role !== role) {
-    switchRole(role)
+function ProtectedRoute({ children, requiredRole }) {
+  const { isAuthenticated, user } = useAuthStore()
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
   }
+
+  // Enforce role-based access: redirect to correct portal if role doesn't match
+  if (requiredRole && user?.role !== requiredRole) {
+    if (user?.role === 'student') {
+      return <Navigate to="/student/dashboard" replace />
+    }
+    return <Navigate to="/admin/dashboard" replace />
+  }
+
   return children
 }
 
 function PublicRoute({ children }) {
   const { isAuthenticated, user } = useAuthStore()
   if (isAuthenticated) {
-    return <Navigate to={user?.role === 'student' ? '/student/dashboard' : '/dashboard'} replace />
+    if (user?.role === 'student') {
+      return <Navigate to="/student/dashboard" replace />
+    }
+    return <Navigate to="/admin/dashboard" replace />
   }
   return children
 }
@@ -57,14 +77,6 @@ function PageLoader() {
       <LoadingState />
     </div>
   )
-}
-
-function FeeRedirectHandler() {
-  const { user } = useAuthStore()
-  if (user?.role === 'student') {
-    return <Navigate to="/student/fees" replace />
-  }
-  return <Navigate to="/fees" replace />
 }
 
 export default function App() {
@@ -78,49 +90,67 @@ export default function App() {
           <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
           <Route path="/onboarding" element={<ProtectedRoute><SchoolSetup /></ProtectedRoute>} />
 
-          {/* Smart fee entry point */}
-          <Route path="/fee" element={<ProtectedRoute><FeeRedirectHandler /></ProtectedRoute>} />
-
-          {/* Admin routes */}
-          <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/students" element={<Students />} />
-            <Route path="/students/:id" element={<StudentDetails />} />
-            <Route path="/attendance" element={<Attendance />} />
-            <Route path="/homework" element={<Homework />} />
-            <Route path="/fees" element={<Fees />} />
-            <Route path="/fees/structure" element={<FeeStructure />} />
-            <Route path="/challans" element={<Challans />} />
-            <Route path="/challans/:id" element={<ChallanDetails />} />
-            <Route path="/payments" element={<Payments />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/ai-assistant" element={<AIAssistant />} />
-            <Route path="/settings" element={<Settings />} />
+          {/* Admin routes — prefixed with /admin */}
+          <Route element={<ProtectedRoute requiredRole="admin"><AppLayout /></ProtectedRoute>}>
+            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="/admin/dashboard" element={<Dashboard />} />
+            <Route path="/admin/students" element={<Students />} />
+            <Route path="/admin/students/:id" element={<StudentDetails />} />
+            <Route path="/admin/classes" element={<Classes />} />
+            <Route path="/admin/attendance" element={<Attendance />} />
+            <Route path="/admin/homework" element={<Homework />} />
+            <Route path="/admin/fees" element={<Fees />} />
+            <Route path="/admin/fees/structure" element={<FeeStructure />} />
+            <Route path="/admin/challans" element={<Challans />} />
+            <Route path="/admin/challans/:id" element={<ChallanDetails />} />
+            <Route path="/admin/payments" element={<Payments />} />
+            <Route path="/admin/reports" element={<Reports />} />
+            <Route path="/admin/messages" element={<Messages />} />
+            <Route path="/admin/ai-assistant" element={<AIAssistant />} />
+            <Route path="/admin/settings" element={<Settings />} />
           </Route>
 
           {/* Student routes */}
-          <Route element={<ProtectedRoute><StudentLayout /></ProtectedRoute>}>
+          <Route element={<ProtectedRoute requiredRole="student"><StudentLayout /></ProtectedRoute>}>
+            <Route path="/student" element={<Navigate to="/student/dashboard" replace />} />
             <Route path="/student/dashboard" element={<StudentDashboard />} />
+            <Route path="/student/subjects" element={<StudentSubjects />} />
+            <Route path="/student/grades" element={<StudentGrades />} />
+            <Route path="/student/exams" element={<StudentExams />} />
             <Route path="/student/attendance" element={<StudentAttendance />} />
             <Route path="/student/homework" element={<StudentHomework />} />
             <Route path="/student/homework/:id" element={<StudentHomeworkDetails />} />
+            <Route path="/student/progress" element={<StudentProgress />} />
+            <Route path="/student/schedule" element={<StudentSchedule />} />
+            <Route path="/student/notifications" element={<StudentNotifications />} />
             <Route path="/student/fees" element={<StudentFees />} />
-            <Route path="/student/schedule" element={<Navigate to="/student/dashboard" replace />} />
-            <Route path="/student/notifications" element={<Navigate to="/student/dashboard" replace />} />
             <Route path="/student/profile" element={<StudentProfile />} />
           </Route>
 
-          {/* Legacy & smart redirects */}
-          <Route path="/student" element={<Navigate to="/student/dashboard" replace />} />
+          {/* Legacy redirects — old routes map to new /admin/* paths */}
+          <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="/students" element={<Navigate to="/admin/students" replace />} />
+          <Route path="/students/:id" element={<Navigate to="/admin/students" replace />} />
+          <Route path="/attendance" element={<Navigate to="/admin/attendance" replace />} />
+          <Route path="/homework" element={<Navigate to="/admin/homework" replace />} />
+          <Route path="/fees" element={<Navigate to="/admin/fees" replace />} />
+          <Route path="/fees/structure" element={<Navigate to="/admin/fees/structure" replace />} />
+          <Route path="/challans" element={<Navigate to="/admin/challans" replace />} />
+          <Route path="/challans/:id" element={<Navigate to="/admin/challans" replace />} />
+          <Route path="/payments" element={<Navigate to="/admin/payments" replace />} />
+          <Route path="/reports" element={<Navigate to="/admin/reports" replace />} />
+          <Route path="/ai-assistant" element={<Navigate to="/admin/ai-assistant" replace />} />
+          <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
+          <Route path="/fee" element={<Navigate to="/admin/fees" replace />} />
+          <Route path="/academics/*" element={<Navigate to="/admin/attendance" replace />} />
+
+          {/* Student legacy redirects */}
           <Route path="/student/challans" element={<Navigate to="/student/fees" replace />} />
           <Route path="/student/payments" element={<Navigate to="/student/fees" replace />} />
-          <Route path="/academics/attendance" element={<Navigate to="/attendance" replace />} />
-          <Route path="/academics/homework" element={<Navigate to="/homework" replace />} />
-          <Route path="/academics/*" element={<Navigate to="/attendance" replace />} />
 
           {/* Default redirect */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Suspense>
       <ToastContainer />

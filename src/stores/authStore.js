@@ -47,32 +47,4 @@ export const useAuthStore = create((set, get) => ({
       throw err
     }
   },
-
-  switchRole: (targetRole) => {
-    if (targetRole === 'admin') {
-      const adminUser = {
-        id: 'usr_admin',
-        name: 'Admin',
-        email: 'admin@learnify.com',
-        role: 'admin',
-        schoolName: 'Learnify',
-      }
-      localStorage.setItem('learnify_auth_user', JSON.stringify(adminUser))
-      set({ user: adminUser, isAuthenticated: true })
-      return adminUser
-    } else {
-      const studentUser = {
-        id: 'usr_stu_001',
-        name: 'Ahmed Khan',
-        email: 'ahmed.khan@student.learnify.com',
-        role: 'student',
-        studentId: 'STU-2026-00124',
-        class: '8',
-        section: 'B',
-      }
-      localStorage.setItem('learnify_auth_user', JSON.stringify(studentUser))
-      set({ user: studentUser, isAuthenticated: true })
-      return studentUser
-    }
-  },
 }))

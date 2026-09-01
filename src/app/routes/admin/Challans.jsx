@@ -269,7 +269,7 @@ export default function Challans() {
         </div>
         <div className="flex items-center gap-2 self-end md:self-auto">
           <button
-            onClick={() => navigate('/settings')}
+            onClick={() => navigate('/admin/settings')}
             className="text-xs font-semibold text-ink-secondary hover:text-ink flex items-center gap-1 px-3 py-1.5 rounded-btn bg-white/80 border border-border transition-colors"
           >
             <Settings className="w-3.5 h-3.5 text-ink-muted" />
