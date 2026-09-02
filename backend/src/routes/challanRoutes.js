@@ -44,18 +44,36 @@ router.post("/generate", async (req, res) => {
     });
   }
 
-  const { month = "August 2026", dueDate = "2026-08-30" } = req.body;
+  const { month = "August 2026", dueDate = "2026-08-30", targetClass = "all" } = req.body;
 
   try {
-    // Step 1 — Fetch all active students
-    const { data: students, error: sErr } = await db
+    // Step 1 — Fetch active students, filtered by class if specified
+    let studentQuery = db
       .from("students")
-      .select("id, name, student_id_code, roll_number, phone")
+      .select("id, name, student_id_code, roll_number, phone, current_class_id, classes:current_class_id(id, name)")
       .eq("status", "Active");
+
+    const { data: allStudents, error: sErr } = await studentQuery;
 
     if (sErr) {
       console.error("[challans/generate] Student fetch error:", sErr.message);
       return res.status(500).json({ success: false, errors: [sErr.message] });
+    }
+
+    // Filter by class if targetClass is specified (not "all")
+    let students = allStudents || [];
+    if (targetClass && targetClass !== "all") {
+      const targetNum = String(targetClass).replace(/[^0-9]/g, "");
+      students = students.filter(st => {
+        const className = st.classes?.name || "";
+        const classNum = className.replace(/[^0-9]/g, "");
+        return (
+          classNum === targetNum ||
+          className.toLowerCase() === `class ${targetNum}` ||
+          className.toLowerCase() === targetClass.toLowerCase()
+        );
+      });
+      console.log(`[challans/generate] Filtered to class "${targetClass}": ${students.length} students`);
     }
 
     if (!students || students.length === 0) {

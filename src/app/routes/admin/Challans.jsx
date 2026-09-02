@@ -142,7 +142,7 @@ export default function Challans() {
   const handleGenerateAndOpenBroadcast = async () => {
     setGenerating(true)
     try {
-      const created = await challanService.generate(genMonth, '2026-08-30')
+      const created = await challanService.generate(genMonth, '2026-08-30', genClass)
       await loadData()
       setGenerating(false)
       setGenerateOpen(false)

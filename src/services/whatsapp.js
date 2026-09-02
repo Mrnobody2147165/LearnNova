@@ -77,9 +77,9 @@ export const whatsappService = {
     const discount = challan.discount || challan.discount_amount || 0
     const lateFee = challan.lateFee || challan.late_fee || 0
     const challanId = challan.rawId || challan.id || challanNo
-    
-    // Wildcard DNS 127.0.0.1.nip.io gives a valid .io TLD so WhatsApp renders a clickable blue link, while connecting locally to port 3005!
-    const pdfUrl = `http://127.0.0.1.nip.io:3005/api/notify/pdf/challan/${challanId}`
+
+    // Use the configured backend URL so the link works for anyone anywhere
+    const pdfUrl = `${BACKEND_URL}/api/notify/pdf/challan/${challanId}`
 
     let msg = `*${schoolName}*\n`
     msg += `-----------------------------------\n`

@@ -21,6 +21,15 @@
 
 const { createClient } = require("@supabase/supabase-js");
 
+// Polyfill WebSocket for Node.js < 22 (required by Supabase realtime)
+if (typeof globalThis.WebSocket === "undefined") {
+  try {
+    globalThis.WebSocket = require("ws");
+  } catch {
+    // ws not installed — realtime features disabled, REST API still works
+  }
+}
+
 // ── Lazy-init so missing creds don't crash startup ──────────
 let db = null;
 

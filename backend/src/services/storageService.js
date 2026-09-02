@@ -27,6 +27,11 @@
 
 const { createClient } = require("@supabase/supabase-js");
 
+// Polyfill WebSocket for Node.js < 22
+if (typeof globalThis.WebSocket === "undefined") {
+  try { globalThis.WebSocket = require("ws"); } catch {}
+}
+
 // ── Supabase client (lazy-init so missing creds don't crash startup) ──
 let supabase = null;
 
@@ -65,8 +70,13 @@ async function uploadPDFAndGetLink(pdfBuffer, filename) {
 
   const client = getClient();
   if (!client) {
-    const fallbackUrl = `http://localhost:3005/api/notify/pdf/challan/${filename.replace('.pdf', '')}`;
-    console.log(`[Storage] Supabase not configured. Using local PDF URL: ${fallbackUrl}`);
+    const publicBase = (process.env.PUBLIC_URL || "").replace(/\/$/, "");
+    if (!publicBase) {
+      console.warn("[Storage] Supabase not configured and PUBLIC_URL is not set. PDF link will be unavailable.");
+      return { success: false, error: "No storage configured and PUBLIC_URL not set." };
+    }
+    const fallbackUrl = `${publicBase}/api/notify/pdf/challan/${filename.replace('.pdf', '')}`;
+    console.log(`[Storage] Supabase not configured. Using PUBLIC_URL fallback: ${fallbackUrl}`);
     return { success: true, url: fallbackUrl };
   }
 
@@ -82,8 +92,14 @@ async function uploadPDFAndGetLink(pdfBuffer, filename) {
       });
 
     if (error) {
-      console.error("[Storage] Upload failed, using local PDF fallback:", error.message);
-      const fallbackUrl = `http://localhost:3005/api/notify/pdf/challan/${filename.replace('.pdf', '')}`;
+      console.error("[Storage] Upload failed:", error.message);
+      const publicBase = (process.env.PUBLIC_URL || "").replace(/\/$/, "");
+      if (!publicBase) {
+        console.warn("[Storage] PUBLIC_URL not set — PDF link will be unavailable.");
+        return { success: false, error: error.message };
+      }
+      const fallbackUrl = `${publicBase}/api/notify/pdf/challan/${filename.replace('.pdf', '')}`;
+      console.log(`[Storage] Falling back to PUBLIC_URL route: ${fallbackUrl}`);
       return { success: true, url: fallbackUrl };
     }
 
@@ -97,7 +113,12 @@ async function uploadPDFAndGetLink(pdfBuffer, filename) {
     return { success: true, url: publicUrl };
   } catch (err) {
     console.error("[Storage] Unexpected error:", err.message);
-    const fallbackUrl = `http://localhost:3005/api/notify/pdf/challan/${filename.replace('.pdf', '')}`;
+    const publicBase = (process.env.PUBLIC_URL || "").replace(/\/$/, "");
+    if (!publicBase) {
+      console.warn("[Storage] PUBLIC_URL not set — PDF link will be unavailable.");
+      return { success: false, error: err.message };
+    }
+    const fallbackUrl = `${publicBase}/api/notify/pdf/challan/${filename.replace('.pdf', '')}`;
     return { success: true, url: fallbackUrl };
   }
 }

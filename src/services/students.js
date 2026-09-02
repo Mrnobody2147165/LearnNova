@@ -2,7 +2,7 @@
 import { supabase, isSupabaseConfigured } from './supabase'
 import { auditService } from './audit'
 
-const DEFAULT_SCHOOL_ID = '14bdc5cf-93da-4ee6-9e07-d4378a8cae84'
+const DEFAULT_SCHOOL_ID = 'abc88e49-fa7c-4987-b877-09b05b61d6a6'
 
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || ''))
 
@@ -12,34 +12,42 @@ export const studentService = {
       try {
         let query = supabase
           .from('students')
-          .select('*')
+          .select('*, classes:current_class_id(id, name)')
           .order('name', { ascending: true })
 
         if (feeStatus && feeStatus !== 'All' && feeStatus !== 'all') query = query.eq('fee_status', feeStatus)
         if (search) query = query.ilike('name', `%${search}%`)
 
         const { data, error } = await query
-        if (!error && data && data.length > 0) {
+        if (error) {
+          console.warn('Supabase getAll students error:', error.message)
+        } else if (data) {
           let results = data.map(s => ({
             id: s.student_id_code || s.id,
             rawId: s.id,
             name: s.name,
-            class: s.roll_number ? `Class ${Math.floor(parseInt(s.roll_number || '24') % 5 + 6)}-${s.roll_number % 2 === 0 ? 'A' : 'B'}` : 'Class 8-A',
+            class: s.classes?.name || (s.roll_number ? `Class ${s.roll_number}` : 'Unassigned'),
             guardian: s.email ? s.email.split('@')[0].replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Guardian',
-            phone: s.phone || '+92 300 1234567',
-            email: s.email || 'guardian@email.com',
+            phone: s.phone || '',
+            email: s.email || '',
             feeStatus: s.fee_status || 'Pending',
             status: s.status || 'Active',
             admissionDate: s.admission_date,
             dob: s.dob,
-            address: s.address || 'Karachi, Pakistan',
+            address: s.address || '',
             gender: s.gender || 'Male',
-            rollNo: s.roll_number || '01',
-            section: 'A',
+            rollNo: s.roll_number || '',
+            section: s.section || 'A',
           }))
 
           if (classFilter && classFilter !== 'all') {
-            results = results.filter(s => s.class.toLowerCase().includes(classFilter.toLowerCase()))
+            results = results.filter(s => {
+              const cls = String(s.class || '').toLowerCase()
+              const filter = String(classFilter).toLowerCase()
+              // Match "Class 1" filter against "class 1" — exact number match, not substring
+              // e.g. filter "1" should match "class 1" but NOT "class 10" or "class 11"
+              return cls === `class ${filter}` || cls === filter || new RegExp(`\\bclass\\s+${filter}\\b`).test(cls)
+            })
           }
           return results
         }
@@ -57,6 +65,7 @@ export const studentService = {
           .from('students')
           .select(`
             *,
+            classes:current_class_id(id, name),
             challans(*),
             attendance_records(*)
           `)
@@ -74,22 +83,22 @@ export const studentService = {
             id: data.student_id_code || data.id,
             rawId: data.id,
             name: data.name,
-            class: `Class ${Math.floor(parseInt(data.roll_number || '24') % 5 + 6)}-A`,
-            guardian: data.email ? data.email.split('@')[0].replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Imran Khan',
-            guardianPhone: data.phone || '+92 300 1234567',
-            guardianEmail: data.email || 'imran.khan@email.com',
-            guardianCnic: '42101-1234567-1',
-            guardianOccupation: 'Business',
-            phone: data.phone || '+92 300 1234567',
-            email: data.email || 'student@learnify.edu.pk',
+            class: data.classes?.name || (data.roll_number ? `Class ${data.roll_number}` : 'Unassigned'),
+            guardian: data.email ? data.email.split('@')[0].replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Guardian',
+            guardianPhone: data.phone || '',
+            guardianEmail: data.email || '',
+            guardianCnic: '',
+            guardianOccupation: '',
+            phone: data.phone || '',
+            email: data.email || '',
             feeStatus: data.fee_status || 'Pending',
             status: data.status || 'Active',
-            admissionDate: data.admission_date || '2024-03-15',
-            dob: data.dob || '2012-05-14',
-            address: data.address || 'Main Campus, Karachi',
+            admissionDate: data.admission_date || '',
+            dob: data.dob || '',
+            address: data.address || '',
             gender: data.gender || 'Male',
-            rollNo: data.roll_number || '24',
-            section: 'A',
+            rollNo: data.roll_number || '',
+            section: data.section || 'A',
             challans: data.challans || [],
             attendance: data.attendance_records || [],
           }
@@ -113,22 +122,49 @@ export const studentService = {
     if (isSupabaseConfigured() && supabase) {
       try {
         const studentCode = data.studentId || 'STU-2026-' + String(150 + Math.floor(Math.random() * 800)).padStart(5, '0')
+        const className = data.class ? `Class ${data.class}` : (data.className || '')
+
+        // Try to resolve current_class_id from the classes table
+        let currentClassId = null
+        if (data.class) {
+          const { data: classRows } = await supabase
+            .from('classes')
+            .select('id, name')
+            .eq('school_id', DEFAULT_SCHOOL_ID)
+          if (classRows && classRows.length > 0) {
+            const targetNum = String(data.class).replace(/[^0-9]/g, '')
+            const match = classRows.find(c => {
+              const cNum = String(c.name).replace(/[^0-9]/g, '')
+              return (
+                c.name === className ||
+                c.name === `Class ${data.class}` ||
+                c.name === String(data.class) ||
+                cNum === targetNum
+              )
+            })
+            if (match) currentClassId = match.id
+          }
+        }
+
+        const insertPayload = {
+          school_id: DEFAULT_SCHOOL_ID,
+          student_id_code: studentCode,
+          name: data.name,
+          gender: data.gender || 'Male',
+          dob: data.dob || null,
+          admission_date: data.admissionDate || new Date().toISOString().split('T')[0],
+          roll_number: data.rollNo || (data.class ? String(data.class).replace(/[^0-9]/g, '') : ''),
+          address: data.address || '',
+          phone: data.phone || '',
+          email: data.email || '',
+          fee_status: data.feeStatus || 'Pending',
+          status: data.status || 'Active',
+        }
+        if (currentClassId) insertPayload.current_class_id = currentClassId
+
         const { data: inserted, error } = await supabase
           .from('students')
-          .insert([{
-            school_id: DEFAULT_SCHOOL_ID,
-            student_id_code: studentCode,
-            name: data.name,
-            gender: data.gender || 'Male',
-            dob: data.dob || '2012-01-01',
-            admission_date: data.admissionDate || new Date().toISOString().split('T')[0],
-            roll_number: data.rollNo || '01',
-            address: data.address || '',
-            phone: data.phone || '',
-            email: data.email || '',
-            fee_status: data.feeStatus || 'Pending',
-            status: data.status || 'Active',
-          }])
+          .insert([insertPayload])
           .select()
           .single()
 
@@ -137,15 +173,26 @@ export const studentService = {
             actionType: 'STUDENT_ENROLLED',
             targetEntity: 'students',
             targetId: inserted.id,
-            details: { name: inserted.name, student_id: inserted.student_id_code },
+            details: { name: inserted.name, student_id: inserted.student_id_code, class: className },
           })
           return {
-            id: inserted.student_id_code,
+            id: inserted.student_id_code || inserted.id,
             rawId: inserted.id,
             name: inserted.name,
-            class: data.class ? `Class ${data.class}` : 'Class 8-A',
-            ...inserted,
+            class: className,
+            phone: inserted.phone || '',
+            email: inserted.email || '',
+            feeStatus: inserted.fee_status || 'Pending',
+            status: inserted.status || 'Active',
+            rollNo: inserted.roll_number || '',
+            section: data.section || 'A',
+            gender: inserted.gender || 'Male',
+            address: inserted.address || '',
+            admissionDate: inserted.admission_date,
           }
+        }
+        if (error) {
+          console.error('Supabase create student error:', error.message)
         }
       } catch (err) {
         console.warn('Supabase create student error:', err)
@@ -158,17 +205,36 @@ export const studentService = {
   async update(id, data) {
     if (isSupabaseConfigured() && supabase) {
       try {
-        let query = supabase
-          .from('students')
-          .update({
-            name: data.name,
-            phone: data.phone,
-            email: data.email,
-            address: data.address,
-            fee_status: data.feeStatus,
-            status: data.status,
-            roll_number: data.rollNo,
-          })
+        const updatePayload = {
+          name: data.name,
+          phone: data.phone,
+          email: data.email,
+          address: data.address,
+          fee_status: data.feeStatus,
+          status: data.status,
+          roll_number: data.rollNo,
+          gender: data.gender,
+        }
+        if (data.dob) updatePayload.dob = data.dob
+
+        // Try to resolve current_class_id if class is provided
+        if (data.class) {
+          const { data: classRows } = await supabase
+            .from('classes')
+            .select('id, name')
+            .eq('school_id', DEFAULT_SCHOOL_ID)
+          if (classRows && classRows.length > 0) {
+            const target = `Class ${data.class}`
+            const match = classRows.find(c =>
+              c.name === target ||
+              c.name === String(data.class) ||
+              String(c.name).replace(/[^0-9]/g, '') === String(data.class)
+            )
+            if (match) updatePayload.current_class_id = match.id
+          }
+        }
+
+        let query = supabase.from('students').update(updatePayload)
 
         if (isUUID(id)) {
           query = query.or(`id.eq.${id},student_id_code.eq.${id}`)

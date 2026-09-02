@@ -33,6 +33,8 @@
 
 const { getDb } = require("./db");
 
+const DEFAULT_SCHOOL_ID = process.env.DEFAULT_SCHOOL_ID || "abc88e49-fa7c-4987-b877-09b05b61d6a6";
+
 const SCHOOL_TIMINGS =
   "**School Timings**\n" +
   "- Monday–Thursday & Saturday: 8:00 AM – 2:00 PM\n" +
@@ -62,10 +64,10 @@ async function getLiveSchoolContext() {
 
   try {
     const [classesRes, studentsRes, challansRes, paymentsRes] = await Promise.all([
-      db.from("classes").select("id, name, numeric_order"),
-      db.from("students").select("id, name, roll_number, phone, email, fee_status, status, current_class_id"),
-      db.from("challans").select("id, challan_number, student_id, total_amount, status, due_date, billing_month"),
-      db.from("payments").select("id, student_id, amount_paid, payment_date, status"),
+      db.from("classes").select("id, name, numeric_order").eq("school_id", DEFAULT_SCHOOL_ID),
+      db.from("students").select("id, name, roll_number, phone, email, fee_status, status, current_class_id").eq("school_id", DEFAULT_SCHOOL_ID),
+      db.from("challans").select("id, challan_number, student_id, total_amount, status, due_date, billing_month").eq("school_id", DEFAULT_SCHOOL_ID),
+      db.from("payments").select("id, student_id, amount_paid, payment_date, status").eq("school_id", DEFAULT_SCHOOL_ID),
     ]);
 
     if (classesRes.error)   console.error("[SchoolContext] classes error:",   classesRes.error.message);

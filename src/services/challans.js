@@ -4,7 +4,7 @@ import { auditService } from './audit'
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'
 
-const DEFAULT_SCHOOL_ID = '14bdc5cf-93da-4ee6-9e07-d4378a8cae84'
+const DEFAULT_SCHOOL_ID = 'abc88e49-fa7c-4987-b877-09b05b61d6a6'
 
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || ''))
 
@@ -18,7 +18,7 @@ export const challanService = {
           .from('challans')
           .select(`
             *,
-            students:student_id(id, name, student_id_code, roll_number, phone)
+            students:student_id(id, name, student_id_code, roll_number, phone, current_class_id, classes:current_class_id(name))
           `)
           .order('issue_date', { ascending: false })
 
@@ -26,10 +26,12 @@ export const challanService = {
         if (status && status !== 'all' && status !== 'All') query = query.eq('status', status)
 
         const { data, error } = await query
-        if (!error && data && data.length > 0) {
+        if (error) {
+          console.warn('Supabase getAll challans error:', error.message)
+        } else if (data) {
           let list = data.map(c => {
-            const roll = parseInt(c.students?.roll_number || '24')
-            const classText = `Class ${Math.floor(roll % 5 + 6)}-${roll % 2 === 0 ? 'A' : 'B'}`
+            const classText = c.students?.classes?.name || 
+              (c.students?.roll_number ? `Class ${c.students.roll_number}` : 'Unassigned')
             return {
               id: c.challan_number || c.id,
               rawId: c.id,
@@ -78,7 +80,7 @@ export const challanService = {
           .from('challans')
           .select(`
             *,
-            students:student_id(*),
+            students:student_id(*, classes:current_class_id(name)),
             challan_items(*)
           `)
 
@@ -99,7 +101,6 @@ export const challanService = {
                 { head: 'Facilities & Sports Fee', amount: 1000 },
               ]
 
-          const roll = parseInt(data.students?.roll_number || '24')
           return {
             id: data.challan_number || data.id,
             rawId: data.id,
@@ -107,9 +108,10 @@ export const challanService = {
             studentId: data.students?.student_id_code || 'STU-2026-00124',
             studentName: data.students?.name || 'Ahmed Khan',
             studentPhone: data.students?.phone || '',
-            class: `Class ${Math.floor(roll % 5 + 6)}-A`,
+            class: data.students?.classes?.name || 
+              (data.students?.roll_number ? `Class ${data.students.roll_number}` : 'Unassigned'),
             guardian: data.students?.email ? data.students.email.split('@')[0] : 'Guardian',
-            rollNo: data.students?.roll_number || '24',
+            rollNo: data.students?.roll_number || '',
             month: data.billing_month,
             amount: Number(data.base_amount),
             total: Number(data.total_amount),
@@ -232,12 +234,12 @@ export const challanService = {
    * Batch-generate challans for all active students.
    * Calls POST /api/challans/generate on the backend.
    */
-  async generate(month = 'August 2026', dueDate = '2026-08-30') {
+  async generate(month = 'August 2026', dueDate = '2026-08-30', targetClass = 'all') {
     try {
       const response = await fetch(`${BACKEND_URL}/api/challans/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ month, dueDate }),
+        body: JSON.stringify({ month, dueDate, targetClass }),
       })
 
       const result = await response.json()
