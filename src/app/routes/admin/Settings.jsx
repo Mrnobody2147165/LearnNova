@@ -104,16 +104,16 @@ export default function Settings() {
 
   const handleTestWhatsApp = () => {
     handleSaveWhatsApp()
-    const url = `https://api.whatsapp.com/send?phone=${form.whatsappSenderPhone.replace(/[^0-9]/g, '')}&text=${encodeURIComponent('Hello! This is an official test notification from Learnify Model Grammar School WhatsApp billing gateway.')}`
+    const url = `https://api.whatsapp.com/send?phone=${form.whatsappSenderPhone.replace(/[^0-9]/g, '')}&text=${encodeURIComponent('Hello! This is an official test notification from LearnNova Model Grammar School WhatsApp billing gateway.')}`
     window.open(url, '_blank')
     toast.success('Test WhatsApp message launched')
   }
 
   const roles = [
-    { id: 'R1', name: 'Admin User', email: user?.email || 'admin@learnify.edu.pk', role: 'Administrator', status: 'Active' },
-    { id: 'R2', name: 'Sadia Rahman', email: 'sadia.r@learnify.edu.pk', role: 'Faculty', status: 'Active' },
-    { id: 'R3', name: 'Kamran Akhtar', email: 'kamran.a@learnify.edu.pk', role: 'Faculty', status: 'Active' },
-    { id: 'R4', name: 'Accounts Manager', email: 'accounts@learnify.edu.pk', role: 'Accountant', status: 'Active' },
+    { id: 'R1', name: 'Admin User', email: user?.email || 'admin@learnnova.edu.pk', role: 'Administrator', status: 'Active' },
+    { id: 'R2', name: 'Sadia Rahman', email: 'sadia.r@learnnova.edu.pk', role: 'Faculty', status: 'Active' },
+    { id: 'R3', name: 'Kamran Akhtar', email: 'kamran.a@learnnova.edu.pk', role: 'Faculty', status: 'Active' },
+    { id: 'R4', name: 'Accounts Manager', email: 'accounts@learnnova.edu.pk', role: 'Accountant', status: 'Active' },
   ]
 
   return (

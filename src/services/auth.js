@@ -1,16 +1,18 @@
 // Authentication service — mock implementation
 // Replace with Supabase Auth later without changing the interface.
 
-const STORAGE_KEY = 'learnify_auth_user'
-const STUDENTS_KEY = 'learnify_registered_students'
+const _LEGACY_STORAGE_KEY = 'learnify_auth_user'
+const STORAGE_KEY = 'learnnova_auth_user'
+const _LEGACY_STUDENTS_KEY = 'learnify_registered_students'
+const STUDENTS_KEY = 'learnnova_registered_students'
 
 const delay = (ms = 300) => new Promise(r => setTimeout(r, ms))
 
-const ADMIN_EMAIL = 'admin@learnify.com'
+const ADMIN_EMAIL = 'admin@learnnova.com'
 const ADMIN_PASSWORD = 'learnify'
 
 const getRegisteredStudents = () => {
-  const stored = localStorage.getItem(STUDENTS_KEY)
+  const stored = localStorage.getItem(STUDENTS_KEY) || localStorage.getItem(_LEGACY_STUDENTS_KEY)
   return stored ? JSON.parse(stored) : []
 }
 
@@ -31,7 +33,7 @@ export const authService = {
         name: 'Admin',
         email: ADMIN_EMAIL,
         role: 'admin',
-        schoolName: 'Learnify',
+        schoolName: 'LearnNova',
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(user))
       return user
@@ -101,7 +103,7 @@ export const authService = {
   },
 
   getCurrentUser() {
-    const stored = localStorage.getItem(STORAGE_KEY)
+    const stored = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(_LEGACY_STORAGE_KEY)
     return stored ? JSON.parse(stored) : null
   },
 

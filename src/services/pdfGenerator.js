@@ -2,7 +2,7 @@
  * PDF Generator Service
  *
  * Instead of generating PDFs client-side with jsPDF, this
- * service now calls the Learnify backend which:
+ * service now calls the LearnNova backend which:
  *   1. Generates the PDF server-side (pdfkit)
  *   2. Uploads it to Supabase Storage
  *   3. Returns a public URL (pdfLink)
@@ -38,7 +38,7 @@ function openInNewTab(url) {
   window.open(url, '_blank', 'noopener,noreferrer')
 }
 
-export function generateClientSidePDF(challanData, schoolName = 'Learnify Model Academy') {
+export function generateClientSidePDF(challanData, schoolName = 'LearnNova Model Academy') {
   const doc = new jsPDF()
 
   // Header background
@@ -152,7 +152,7 @@ export const pdfGenerator = {
     }
 
     // Client-side fallback via jsPDF
-    const filename = generateClientSidePDF(challanData, schoolData?.name || 'Learnify Model Academy')
+    const filename = generateClientSidePDF(challanData, schoolData?.name || 'LearnNova Model Academy')
     return { success: true, clientSide: true, filename }
   },
 
@@ -325,7 +325,7 @@ export function generateClassPDF(classData) {
   doc.setFontSize(8)
   doc.setFont('helvetica', 'italic')
   doc.text(`Generated on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, 14, y)
-  doc.text('Learnify — Class Report', 196, y, { align: 'right' })
+  doc.text('LearnNova — Class Report', 196, y, { align: 'right' })
 
   const filename = `${(classData.name || 'class').replace(/\s+/g, '_')}_report.pdf`
   doc.save(filename)

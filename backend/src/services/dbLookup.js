@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * Learnify — Database Lookup Helpers
+ * LearnNova — Database Lookup Helpers
  * ============================================================
  *
  * Shared functions that query the Supabase database to build

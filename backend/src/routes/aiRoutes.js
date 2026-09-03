@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * Learnify AI Assistant — Express Routes
+ * LearnNova AI Assistant — Express Routes
  * ============================================================
  *
  * POST /api/ai/ask

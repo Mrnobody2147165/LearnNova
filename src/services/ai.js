@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * Learnify AI Service — Frontend Client
+ * LearnNova AI Service — Frontend Client
  * ============================================================
  *
  * All AI questions are handled by the Express backend at
@@ -107,7 +107,7 @@ export const aiService = {
         text: [
           '### ⚠️ Connection Error',
           '',
-          `Could not reach the Learnify backend at \`${BACKEND_URL}\`.`,
+          `Could not reach the LearnNova backend at \`${BACKEND_URL}\`.`,
           '',
           '**To fix this:**',
           '1. Make sure the backend server is running: `cd backend && npm run dev`',

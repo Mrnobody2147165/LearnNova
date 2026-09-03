@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * Learnify — Supabase Database Client
+ * LearnNova — Supabase Database Client
  * ============================================================
  *
  * Creates a Supabase client using the SERVICE ROLE key so the

@@ -180,7 +180,7 @@ export default function Students() {
 
   const handleQuickWhatsApp = (student) => {
     const phone = whatsappService.formatWhatsAppNumber(student.phone || '03001234567')
-    const msg = `Hello ${student.name}'s Guardian,\nThis is an official communication from Learnify Model Grammar School regarding academic and fee records for Class ${student.class}.`
+    const msg = `Hello ${student.name}'s Guardian,\nThis is an official communication from LearnNova Model Grammar School regarding academic and fee records for Class ${student.class}.`
     whatsappService.openWhatsAppDirect(phone, msg)
   }
 

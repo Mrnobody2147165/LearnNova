@@ -1,5 +1,5 @@
 -- ============================================================================
--- LEARNIFY COMPLETE RELATIONAL DATABASE SCHEMA & MIGRATION SCRIPT
+-- LEARNNOVA COMPLETE RELATIONAL DATABASE SCHEMA & MIGRATION SCRIPT
 -- Compatible with Supabase PostgreSQL
 -- ============================================================================
 
@@ -564,7 +564,7 @@ END $$;
 
 -- 6. SEED DATA (INITIAL SCHOOL ROSTER)
 INSERT INTO schools (name, code, address, phone, email)
-VALUES ('Learnify Model Academy', 'SCH-001', 'Main Campus, Gulshan Block 4, Karachi', '+92 21 34567890', 'info@learnify.edu.pk')
+VALUES ('LearnNova Model Academy', 'SCH-001', 'Main Campus, Gulshan Block 4, Karachi', '+92 21 34567890', 'info@learnnova.edu.pk')
 ON CONFLICT (code) DO NOTHING;
 
 DO $$ 

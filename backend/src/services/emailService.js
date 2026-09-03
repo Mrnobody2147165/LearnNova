@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * Learnify Notifications — Email Service (Nodemailer)
+ * LearnNova Notifications — Email Service (Nodemailer)
  * ============================================================
  *
  * Sends email notifications via Nodemailer SMTP transport.
@@ -81,7 +81,7 @@ async function sendEmail(to, subject, html) {
   }
 
   try {
-    const from = process.env.EMAIL_FROM_ADDRESS || "noreply@learnify.edu";
+    const from = process.env.EMAIL_FROM_ADDRESS || "noreply@learnnova.edu";
     const info = await transport.sendMail({ from, to, subject, html });
 
     console.log(`[Email] Sent successfully. Message ID: ${info.messageId}`);

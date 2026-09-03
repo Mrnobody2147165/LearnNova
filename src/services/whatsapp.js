@@ -2,7 +2,7 @@
  * WhatsApp Notification Service
  *
  * Routes all WhatsApp / SMS / Email dispatch through the
- * Learnify backend so that secret credentials (Twilio, SMTP)
+ * LearnNova backend so that secret credentials (Twilio, SMTP)
  * never leave the server.
  *
  * The backend handles:
@@ -20,10 +20,11 @@ import { auditService } from './audit'
 import pdfGenerator from './pdfGenerator'
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'
-const WHATSAPP_CONFIG_KEY = 'learnify_whatsapp_config'
+const _LEGACY_WHATSAPP_CONFIG_KEY = 'learnify_whatsapp_config'
+const WHATSAPP_CONFIG_KEY = 'learnnova_whatsapp_config'
 
 export const getWhatsAppConfig = () => {
-  const saved = localStorage.getItem(WHATSAPP_CONFIG_KEY)
+  const saved = localStorage.getItem(WHATSAPP_CONFIG_KEY) || localStorage.getItem(_LEGACY_WHATSAPP_CONFIG_KEY)
   if (saved) {
     try {
       const parsed = JSON.parse(saved)
@@ -68,7 +69,7 @@ export const whatsappService = {
    * Build a formatted text message for a challan notification.
    * Used by the UI preview panels and billing automation.
    */
-  generateChallanMessage(challan, schoolName = 'Learnify Model Grammar School') {
+  generateChallanMessage(challan, schoolName = 'LearnNova Model Grammar School') {
     const studentName = challan.studentName || 'Student'
     const challanNo = challan.challanNo || challan.challan_number || 'N/A'
     const month = challan.month || challan.billing_month || 'N/A'
@@ -126,7 +127,7 @@ export const whatsappService = {
         body: JSON.stringify({
           recipient: { phone, whatsappOptIn: true },
           data: {
-            schoolName: 'Learnify Model Grammar School',
+            schoolName: 'LearnNova Model Grammar School',
             studentName: challan.studentName || 'Imran (Admin)',
             challanNumber: challan.challanNo || challan.challan_number || 'CH-AUG-0776-01',
             totalAmount: challan.total || challan.total_amount || 11500,
@@ -172,7 +173,7 @@ export const whatsappService = {
     }
 
     // Direct WhatsApp Web Launcher: Embed direct PDF link in message, NO local browser file downloads!
-    const message = this.generateChallanMessage(challan, schoolName || 'Learnify Model Academy')
+    const message = this.generateChallanMessage(challan, schoolName || 'LearnNova Model Academy')
     const url = `https://wa.me/${formatted}?text=${encodeURIComponent(message)}`
     window.open(url, '_blank')
 

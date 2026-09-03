@@ -1,19 +1,20 @@
 /**
  * Classes Service
  * Manages school class data (CRUD).
- * Uses localStorage (learnify_classes key) with seed data fallback.
+ * Uses localStorage (learnnova_classes key) with seed data fallback.
  * Replace with Supabase/REST API calls later without changing the interface.
  */
 
 import { classes as seedClasses, teachers as seedTeachers } from '../data/students'
 
-const STORAGE_KEY = 'learnify_classes'
+const _LEGACY_STORAGE_KEY = 'learnify_classes'
+const STORAGE_KEY = 'learnnova_classes'
 
 const delay = (ms = 200) => new Promise(r => setTimeout(r, ms))
 
 const getStoredClasses = () => {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY)
+    const stored = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(_LEGACY_STORAGE_KEY)
     if (stored) return JSON.parse(stored)
   } catch { /* ignore */ }
   // Seed from data file

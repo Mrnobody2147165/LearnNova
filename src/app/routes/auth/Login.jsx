@@ -7,14 +7,14 @@ import Input from '../../../components/ui/Input'
 import Button from '../../../components/ui/Button'
 import { cn } from '../../../utils/format'
 
-const ADMIN_EMAIL = 'admin@learnify.com'
+const ADMIN_EMAIL = 'admin@learnnova.com'
 
 export default function Login() {
   const navigate = useNavigate()
   const { login, loading } = useAuthStore()
   const toast = useToast()
   const [role, setRole] = useState('admin')
-  const [email, setEmail] = useState('admin@learnify.com')
+  const [email, setEmail] = useState('admin@learnnova.com')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState({})
@@ -23,7 +23,7 @@ export default function Login() {
     setRole(newRole)
     setErrors({})
     if (newRole === 'admin') {
-      setEmail('admin@learnify.com')
+      setEmail('admin@learnnova.com')
     } else {
       setEmail('')
     }
@@ -67,7 +67,7 @@ export default function Login() {
             <GraduationCap className="w-7 h-7 text-white" />
           </div>
           <h1 className="text-2xl font-semibold text-ink">Welcome back</h1>
-          <p className="text-sm text-ink-secondary mt-1">Sign in to Learnify</p>
+          <p className="text-sm text-ink-secondary mt-1">Sign in to LearnNova</p>
         </div>
 
         {/* Role Toggle */}
@@ -110,7 +110,7 @@ export default function Login() {
             <Input
               label="Email"
               type="email"
-              placeholder={role === 'admin' ? 'admin@learnify.com' : 'student@email.com'}
+              placeholder={role === 'admin' ? 'admin@learnnova.com' : 'student@email.com'}
               icon={Mail}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -166,7 +166,7 @@ export default function Login() {
 
         <p className="text-center text-xs text-ink-muted mt-6">
           {role === 'admin'
-            ? 'Admin demo: admin@learnify.com / learnify'
+            ? 'Admin demo: admin@learnnova.com / learnify'
             : 'Register as a student to access the student portal'}
         </p>
       </div>

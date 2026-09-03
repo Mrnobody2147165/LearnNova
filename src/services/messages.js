@@ -1,18 +1,20 @@
 /**
  * Messages Service
  * Manages communication between admin and students.
- * Uses localStorage as the data store (learnify_messages key).
+ * Uses localStorage as the data store (learnnova_messages key).
  * Replace with Supabase/REST API calls later without changing the interface.
  */
 
-const STORAGE_KEY = 'learnify_messages'
-const READ_KEY = 'learnify_messages_read'
+const _LEGACY_STORAGE_KEY = 'learnify_messages'
+const _LEGACY_READ_KEY = 'learnify_messages_read'
+const STORAGE_KEY = 'learnnova_messages'
+const READ_KEY = 'learnnova_messages_read'
 
 const delay = (ms = 200) => new Promise(r => setTimeout(r, ms))
 
 const getMessages = () => {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY)
+    const stored = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(_LEGACY_STORAGE_KEY)
     return stored ? JSON.parse(stored) : []
   } catch {
     return []
@@ -25,7 +27,7 @@ const saveMessages = (messages) => {
 
 const getReadIds = () => {
   try {
-    const stored = localStorage.getItem(READ_KEY)
+    const stored = localStorage.getItem(READ_KEY) || localStorage.getItem(_LEGACY_READ_KEY)
     return stored ? JSON.parse(stored) : []
   } catch {
     return []

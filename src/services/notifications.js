@@ -41,18 +41,18 @@ const DEFAULT_NOTIFICATIONS = [
 ]
 
 export const notificationService = {
-  // --- Templates matching learnify-notifications backend ---
+  // --- Templates matching learnnova-notifications backend ---
   templates: {
     challanGenerated: {
       whatsapp: (data) =>
-        `*Dear Parent,*\n\nA new fee challan has been generated for *${data.studentName || 'your child'}* at *Learnify Grammar School*.\n\n` +
+        `*Dear Parent,*\n\nA new fee challan has been generated for *${data.studentName || 'your child'}* at *LearnNova Grammar School*.\n\n` +
         `📄 *Challan No:* ${data.challanNo || data.challanNumber || 'CH-2026'}\n` +
         `💵 *Amount Due:* ${formatPKRFull(data.total || data.totalAmount || 0)}\n` +
         `📅 *Due Date:* ${formatDate(data.dueDate || '2026-08-30')}\n\n` +
-        `_Please clear before the due date to avoid late fees. You can pay online or at any HBL branch._\n\n— *Learnify Accounts*`,
+        `_Please clear before the due date to avoid late fees. You can pay online or at any HBL branch._\n\n— *LearnNova Accounts*`,
 
       sms: (data) =>
-        `Learnify: Fee challan ${data.challanNo} for ${data.studentName}. Amount: ${formatPKRFull(data.total)}. Due: ${formatDate(data.dueDate)}. Pay online via student portal.`,
+        `LearnNova: Fee challan ${data.challanNo} for ${data.studentName}. Amount: ${formatPKRFull(data.total)}. Due: ${formatDate(data.dueDate)}. Pay online via student portal.`,
 
       emailSubject: (data) =>
         `New Fee Challan — ${data.studentName} (${data.challanNo})`,
@@ -64,17 +64,17 @@ export const notificationService = {
         `🧾 *Receipt No:* ${data.receiptNo || 'REC-2026'}\n` +
         `💳 *Method:* ${data.method || 'Online Banking'}\n` +
         `📅 *Date:* ${formatDate(data.date || new Date().toISOString())}\n\n` +
-        `_Thank you for your timely payment._\n\n— *Learnify Accounts*`,
+        `_Thank you for your timely payment._\n\n— *LearnNova Accounts*`,
 
       sms: (data) =>
-        `Learnify: Payment of ${formatPKRFull(data.amount)} received for ${data.studentName}. Receipt: ${data.receiptNo}. Thank you!`,
+        `LearnNova: Payment of ${formatPKRFull(data.amount)} received for ${data.studentName}. Receipt: ${data.receiptNo}. Thank you!`,
     },
 
     overdueNotice: {
       whatsapp: (data) =>
         `*URGENT: Overdue Fee Notice*\n\n` +
         `Dear Parent of *${data.studentName}*,\n\nThe monthly fee challan *${data.challanNo}* is past due. Current payable with fine is *${formatPKRFull(data.total || 0)}*.\n\n` +
-        `Please settle the dues immediately to prevent student portal suspension.\n\n— *Learnify Administration*`,
+        `Please settle the dues immediately to prevent student portal suspension.\n\n— *LearnNova Administration*`,
     },
   },
 

@@ -4,11 +4,11 @@ import { supabase } from '../services/supabase'
 const STORAGE_KEY = 'saas_school_data'
 
 const defaultSchool = {
-  name: 'Learnify Model Grammar School',
+  name: 'LearnNova Model Grammar School',
   logo: null,
   address: 'Main Campus, Block 5, Gulshan-e-Iqbal, Karachi',
   phone: '+92 21 3456 7890',
-  email: 'info@learnify.edu.pk',
+  email: 'info@learnnova.edu.pk',
   session: '2026-2027',
   classes: ['Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10'],
   sections: ['A', 'B', 'C'],

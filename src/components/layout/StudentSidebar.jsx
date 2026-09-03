@@ -42,7 +42,7 @@ export default function StudentSidebar({ mobileOpen, onCloseMobile }) {
           <Logo className="w-5 h-5 text-white" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-ink truncate">Learnify</p>
+          <p className="text-sm font-semibold text-ink truncate">LearnNova</p>
           <p className="text-xs text-ink-muted truncate">Student Portal</p>
         </div>
         <button

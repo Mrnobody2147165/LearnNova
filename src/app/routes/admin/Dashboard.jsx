@@ -81,7 +81,7 @@ export default function Dashboard() {
     <div>
       <PageHeader
         title={`${greeting}, ${userName}.`}
-        subtitle="Here's what's happening across Learnify today."
+        subtitle="Here's what's happening across LearnNova today."
         actions={
           <Button onClick={() => navigate('/admin/students')}>
             <Plus className="w-4 h-4" />

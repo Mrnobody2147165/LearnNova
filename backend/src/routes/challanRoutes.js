@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * Learnify — Challan Write Operations (Server-Side)
+ * LearnNova — Challan Write Operations (Server-Side)
  * ============================================================
  *
  * These routes handle challan lifecycle operations that were

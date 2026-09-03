@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * Learnify Notifications — SMS Service (Twilio)
+ * LearnNova Notifications — SMS Service (Twilio)
  * ============================================================
  *
  * Sends SMS text messages via the Twilio Messaging API.

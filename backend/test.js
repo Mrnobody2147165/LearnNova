@@ -100,7 +100,7 @@ function post(path, body) {
 // ── Run tests ───────────────────────────────────────────────
 (async () => {
   console.log("═══════════════════════════════════════════════════");
-  console.log("  Learnify Backend — Smoke Test (sandbox/mock)");
+  console.log("  LearnNova Backend — Smoke Test (sandbox/mock)");
   console.log("═══════════════════════════════════════════════════\n");
 
   // ── Notification tests ──────────────────────────────────────

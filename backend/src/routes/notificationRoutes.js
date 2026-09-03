@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * Learnify Notifications — Express Routes
+ * LearnNova Notifications — Express Routes
  * ============================================================
  *
  * Two POST endpoints with dual input modes:

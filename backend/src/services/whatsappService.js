@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * Learnify Notifications — WhatsApp Service (Meta Cloud API & Twilio)
+ * LearnNova Notifications — WhatsApp Service (Meta Cloud API & Twilio)
  * ============================================================
  *
  * Sends WhatsApp messages and native PDF document attachments.

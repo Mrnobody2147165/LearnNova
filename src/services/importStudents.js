@@ -353,7 +353,7 @@ export function downloadTemplate() {
   const ws = XLSX.utils.aoa_to_sheet([headers, sampleRow])
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Students')
-  XLSX.writeFile(wb, 'learnify_import_template.xlsx')
+  XLSX.writeFile(wb, 'learnnova_import_template.xlsx')
 }
 
 /**
@@ -372,5 +372,5 @@ export function downloadErrorReport(errorRows) {
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Import Errors')
-  XLSX.writeFile(wb, 'learnify_import_errors.xlsx')
+  XLSX.writeFile(wb, 'learnnova_import_errors.xlsx')
 }

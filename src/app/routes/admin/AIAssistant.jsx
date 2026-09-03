@@ -91,7 +91,7 @@ export default function AIAssistant() {
               <div className="w-16 h-16 rounded-2xl bg-primary-light flex items-center justify-center mb-4 shadow-sm">
                 <Sparkles className="w-8 h-8 text-primary animate-pulse" />
               </div>
-              <h3 className="text-lg font-bold text-ink mb-1">Learnify AI Administrative Intelligence</h3>
+              <h3 className="text-lg font-bold text-ink mb-1">LearnNova AI Administrative Intelligence</h3>
               <p className="text-sm text-ink-secondary max-w-lg mb-6 leading-relaxed">
                 Ask anything about fee collections, overdue students, curriculum progress, attendance records, exam schedules, or report generation.
               </p>

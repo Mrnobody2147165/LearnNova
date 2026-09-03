@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * Learnify Notifications — Supabase Storage Service
+ * LearnNova Notifications — Supabase Storage Service
  * ============================================================
  *
  * Uploads generated PDFs to a Supabase Storage bucket and

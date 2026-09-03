@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * Learnify — Supabase Database Seeder
+ * LearnNova — Supabase Database Seeder
  * ============================================================
  *
  * Seeds test data into Supabase so the notification endpoints
@@ -129,7 +129,7 @@ async function insertRows(table, rows) {
 
 (async () => {
   console.log("═══════════════════════════════════════════════════");
-  console.log("  Learnify — Database Seeder");
+  console.log("  LearnNova — Database Seeder");
   console.log("═══════════════════════════════════════════════════\n");
 
   // ── Cleanup existing test data (optional — comment out to keep existing) ──

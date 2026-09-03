@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * Learnify — Unified Backend Server
+ * LearnNova — Unified Backend Server
  * ============================================================
  *
  * Single Express server combining Notifications + AI + Challan CRUD.
@@ -42,7 +42,7 @@ app.use(express.json());
 
 // ── Health check ────────────────────────────────────────────
 app.get("/health", (_req, res) => {
-  res.json({ status: "ok", service: "learnify-backend", uptime: process.uptime() });
+  res.json({ status: "ok", service: "learnnova-backend", uptime: process.uptime() });
 });
 
 // ── API routes ──────────────────────────────────────────────
@@ -59,7 +59,7 @@ app.use((_req, res) => {
 app.listen(PORT, () => {
   const sandbox = process.env.SANDBOX === "true" ? " [SANDBOX MODE]" : "";
   const mock    = process.env.MOCK_MODE === "true" ? " [MOCK AI]" : "";
-  console.log(`[Learnify] Server running on http://localhost:${PORT}${sandbox}${mock}`);
+  console.log(`[LearnNova] Server running on http://localhost:${PORT}${sandbox}${mock}`);
   console.log(`  POST   /api/challans/generate`);
   console.log(`  PATCH  /api/challans/cancel`);
   console.log(`  POST   /api/challans/pay`);

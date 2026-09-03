@@ -1,7 +1,7 @@
 {
-  "name": "learnify-backend",
+  "name": "learnnova-backend",
   "version": "1.0.0",
-  "description": "Unified backend for Learnify — Notifications + AI Assistant",
+  "description": "Unified backend for LearnNova — Notifications + AI Assistant",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
@@ -19,7 +19,7 @@
     "openai",
     "school",
     "fee",
-    "learnify"
+    "learnova"
   ],
   "license": "ISC",
   "dependencies": {

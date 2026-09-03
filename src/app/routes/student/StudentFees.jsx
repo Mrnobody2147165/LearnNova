@@ -1003,7 +1003,7 @@ export default function StudentFees() {
                   <div>
                     {/* Header */}
                     <div className="text-center pb-2 mb-2 border-b border-border">
-                      <p className="font-bold text-ink text-sm">{school.name || 'Learnify School'}</p>
+                      <p className="font-bold text-ink text-sm">{school.name || 'LearnNova School'}</p>
                       <p className="text-[10px] text-ink-muted">Campus 1, Main Boulevard</p>
                       <span className="inline-block mt-1 font-bold text-[10px] px-2 py-0.5 bg-ink text-white rounded">
                         {copyType}

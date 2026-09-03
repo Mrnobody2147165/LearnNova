@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * Learnify — Live School Context Helper
+ * LearnNova — Live School Context Helper
  * ============================================================
  *
  * Builds a rich, detailed snapshot of live Supabase data that

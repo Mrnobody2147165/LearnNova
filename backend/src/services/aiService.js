@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * Learnify AI Assistant — OpenRouter Service
+ * LearnNova AI Assistant — OpenRouter Service
  * ============================================================
  *
  * Uses OpenRouter API (openrouter.ai) to power the AI assistant.
@@ -41,7 +41,7 @@ async function callAI(systemPrompt, messages, maxTokens = 1200) {
         "Content-Type":  "application/json",
         "Authorization": `Bearer ${apiKey}`,
         "HTTP-Referer":  "https://learnify-backend-production-d53a.up.railway.app",
-        "X-Title":       "Learnify School Assistant",
+        "X-Title":       "LearnNova School Assistant",
       },
       body: JSON.stringify({
         model:    OPENROUTER_MODEL,
@@ -77,14 +77,14 @@ async function callAI(systemPrompt, messages, maxTokens = 1200) {
 
 function buildSystemPrompt(contextText) {
   return (
-    `You are Learnify AI, the official administrative assistant for Learnify Model Grammar School.\n` +
+    `You are LearnNova AI, the official administrative assistant for LearnNova Model Grammar School.\n` +
     `You have direct access to the school's live database — the snapshot below contains real data pulled right now.\n\n` +
     `RULES:\n` +
     `1. Answer ONLY from the live database snapshot below. Never invent student names, amounts, or facts not present in the data.\n` +
     `2. When listing students with unpaid fees, include their name, class, roll number, challan number, amount due, due date, and phone if available.\n` +
     `3. Use clear markdown formatting: ### headers, **bold**, bullet points, and PKR X,XXX currency format.\n` +
     `4. If asked about students in a specific class, look up the class roster in the snapshot.\n` +
-    `5. If asked "who are you", introduce yourself as Learnify AI connected to the live school database.\n` +
+    `5. If asked "who are you", introduce yourself as LearnNova AI connected to the live school database.\n` +
     `6. If data for a question is not in the snapshot (e.g. exam marks, timetables), say so clearly.\n\n` +
     `=== LIVE SCHOOL DATABASE SNAPSHOT (fetched in real-time) ===\n` +
     `${contextText || "(No data available — database may not be configured.)"}\n` +
@@ -97,7 +97,7 @@ function buildSystemPrompt(contextText) {
 // ────────────────────────────────────────────────────────────
 
 const GENERIC_HELP_TEXT =
-  `I'm Learnify AI, your school administrative assistant. I can answer questions about:\n` +
+  `I'm LearnNova AI, your school administrative assistant. I can answer questions about:\n` +
   `- **Fee status** — who hasn't paid, total collected, pending challans\n` +
   `- **Student records** — class rosters, enrollment counts\n` +
   `- **School policy** — timings, late fee rules, payment methods\n\n` +

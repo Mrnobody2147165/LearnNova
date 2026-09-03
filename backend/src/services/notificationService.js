@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * Learnify Notifications — Unified Notification Service
+ * LearnNova Notifications — Unified Notification Service
  * ============================================================
  *
  * Orchestrates the full notification pipeline:
@@ -74,10 +74,10 @@ const TEMPLATES = {
       `Due Date: ${formatDate(d.dueDate)}\n\n` +
       (link ? `View/download your challan: ${link}\n\n` : "") +
       `Please pay before the due date to avoid late fees.\n\n` +
-      `— Learnify`,
+      `— LearnNova`,
 
     sms: (d, link) =>
-      `Learnify: Fee challan ${d.challanNumber} for ${d.studentName}. ` +
+      `LearnNova: Fee challan ${d.challanNumber} for ${d.studentName}. ` +
       `Amount: ${formatCurrency(d.totalAmount)}. Due: ${formatDate(d.dueDate)}. ` +
       (link ? `Download: ${link} ` : "") +
       `Please pay before the due date.`,
@@ -102,7 +102,7 @@ const TEMPLATES = {
         ? `<p><a href="${link}" style="display: inline-block; background: #1a5276; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 4px;">View / Download Challan PDF</a></p>`
         : `<p style="color: #999;">PDF link unavailable — please contact the school office.</p>`) +
       `<p>Please pay before the due date to avoid late fees.</p>` +
-      `<p style="color: #555; font-size: 12px;">— Learnify Fee Management System</p>` +
+      `<p style="color: #555; font-size: 12px;">— LearnNova Fee Management System</p>` +
       `</div>`,
   },
 
@@ -119,10 +119,10 @@ const TEMPLATES = {
       `Method: ${d.paymentMethod || "N/A"}\n\n` +
       (link ? `View/download your receipt: ${link}\n\n` : "") +
       `Thank you for the timely payment!\n\n` +
-      `— Learnify`,
+      `— LearnNova`,
 
     sms: (d, link) =>
-      `Learnify: Payment confirmed for ${d.studentName} (Challan ${d.challanNumber}). ` +
+      `LearnNova: Payment confirmed for ${d.studentName} (Challan ${d.challanNumber}). ` +
       `Amount: ${formatCurrency(d.totalAmount)} received on ${formatDate(d.paymentDate)}. ` +
       (link ? `Receipt: ${link} ` : "") +
       `Thank you!`,
@@ -149,7 +149,7 @@ const TEMPLATES = {
         ? `<p><a href="${link}" style="display: inline-block; background: #27ae60; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 4px;">View / Download Receipt PDF</a></p>`
         : `<p style="color: #999;">PDF link unavailable — please contact the school office.</p>`) +
       `<p>Thank you for the timely payment.</p>` +
-      `<p style="color: #555; font-size: 12px;">— Learnify Fee Management System</p>` +
+      `<p style="color: #555; font-size: 12px;">— LearnNova Fee Management System</p>` +
       `</div>`,
   },
 };

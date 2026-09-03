@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * Learnify Notifications — Input Validation Utilities
+ * LearnNova Notifications — Input Validation Utilities
  * ============================================================
  *
  * Validates notification request payloads before dispatch.

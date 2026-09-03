@@ -4,10 +4,11 @@ import studentService from './students'
 import whatsappService from './whatsapp'
 import { auditService } from './audit'
 
-const AUTO_BILLING_CONFIG_KEY = 'learnify_auto_billing_config'
+const _LEGACY_AUTO_BILLING_CONFIG_KEY = 'learnify_auto_billing_config'
+const AUTO_BILLING_CONFIG_KEY = 'learnnova_auto_billing_config'
 
 export const getAutoBillingConfig = () => {
-  const saved = localStorage.getItem(AUTO_BILLING_CONFIG_KEY)
+  const saved = localStorage.getItem(AUTO_BILLING_CONFIG_KEY) || localStorage.getItem(_LEGACY_AUTO_BILLING_CONFIG_KEY)
   if (saved) {
     try {
       return JSON.parse(saved)
@@ -30,7 +31,7 @@ export const billingAutomationService = {
   /**
    * 1-Click Mass Broadcast to ALL pending student challans
    */
-  async broadcastToAllPending({ onProgress, schoolName = 'Learnify Model Grammar School' } = {}) {
+  async broadcastToAllPending({ onProgress, schoolName = 'LearnNova Model Grammar School' } = {}) {
     const allChallans = await challanService.getAll({ status: 'Pending' })
     if (!allChallans || allChallans.length === 0) {
       return { total: 0, sent: 0, results: [] }
@@ -86,7 +87,7 @@ export const billingAutomationService = {
   /**
    * Automated scheduled check: runs on billing date
    */
-  async checkAndRunAutoBilling(schoolName = 'Learnify Model Grammar School') {
+  async checkAndRunAutoBilling(schoolName = 'LearnNova Model Grammar School') {
     const config = getAutoBillingConfig()
     if (!config.enabled) return { ran: false, reason: 'Automation disabled' }
 
