@@ -56,7 +56,7 @@ function mapChallanToData(challan, items, student, school) {
     schoolName:        school.name,
     studentName:       student.name,
     studentId:         student.student_id_code,
-    className:         student.current_class_id || "",
+    className:         student.classes?.name || student.current_class_id || "",
     challanNumber:     challan.challan_number,
     issueDate:         challan.issue_date,
     dueDate:           challan.due_date,
@@ -118,7 +118,7 @@ async function fetchChallanData(challanId) {
     // Step 2 — Fetch related rows in parallel
     const [itemsRes, studentRes, schoolRes] = await Promise.all([
       db.from("challan_items").select("*").eq("challan_id", challanId),
-      db.from("students").select("*").eq("id", challan.student_id).single(),
+      db.from("students").select("*, classes:current_class_id(name)").eq("id", challan.student_id).single(),
       db.from("schools").select("*").eq("id", challan.school_id).single(),
     ]);
 

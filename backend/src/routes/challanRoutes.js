@@ -67,10 +67,13 @@ router.post("/generate", async (req, res) => {
       students = students.filter(st => {
         const className = st.classes?.name || "";
         const classNum = className.replace(/[^0-9]/g, "");
+        // Also check roll_number as fallback (used when current_class_id is not set)
+        const rollNum = String(st.roll_number || "").replace(/[^0-9]/g, "");
         return (
           classNum === targetNum ||
           className.toLowerCase() === `class ${targetNum}` ||
-          className.toLowerCase() === targetClass.toLowerCase()
+          className.toLowerCase() === targetClass.toLowerCase() ||
+          rollNum === targetNum
         );
       });
       console.log(`[challans/generate] Filtered to class "${targetClass}": ${students.length} students`);

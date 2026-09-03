@@ -190,8 +190,8 @@ function renderTable(doc, data, y) {
   drawFilledRect(doc, MARGIN, y, USABLE_W, 28, BRAND.totalBg);
   doc.font(BRAND.fontBold).fontSize(12).fillColor(BRAND.textLight);
   doc.text("TOTAL", MARGIN + 8, y + 8);
-  doc.text(formatCurrency(data.totalAmount), MARGIN + colDesc + 8, y + 8, {
-    width: colAmt,
+  doc.text(formatCurrency(data.totalAmount), MARGIN + 8, y + 8, {
+    width: USABLE_W - 16,
     align: "right",
   });
   y += 36;

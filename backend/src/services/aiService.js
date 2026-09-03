@@ -1,73 +1,56 @@
 /**
  * ============================================================
- * Learnify AI Assistant — Gemini Service
+ * Learnify AI Assistant — OpenRouter Service
  * ============================================================
  *
- * Two public functions:
- *   • askAssistant(question, history) — Q&A grounded in live
- *     Supabase school data via a rich RAG context injected into
- *     the Gemini prompt.
- *   • interpretDocument(documentText) — extracts structured JSON
- *     (feeItems, dueDate, lateFeePenalty, notes) from raw text.
- *
- * Uses Google Gemini API (generativelanguage.googleapis.com).
- *
- * ── Environment variables ─────────────────────────────────
- *   GEMINI_API_KEY — Google AI Studio key (server-side only)
- *   MOCK_MODE      — "true" to skip Gemini and use live data
- *                    answers + pattern matching only
+ * Uses OpenRouter API (openrouter.ai) to power the AI assistant.
+ * Falls back to direct pattern matching from live Supabase data
+ * when API is unavailable.
  */
 
 const { getLiveSchoolContext, tryDirectAnswer } = require("./schoolContext");
 
-const GEMINI_MODEL       = "gemini-2.5-flash";
-const GEMINI_URL         = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-const REQUEST_TIMEOUT_MS = 25000; // longer timeout for detailed RAG prompts
+const OPENROUTER_URL     = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_MODEL   = "google/gemini-2.5-flash";
+const REQUEST_TIMEOUT_MS = 25000;
 
 // ────────────────────────────────────────────────────────────
 // HELPERS
 // ────────────────────────────────────────────────────────────
 
 function getApiKey() {
-  const key = process.env.GEMINI_API_KEY;
+  const key = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY;
   if (!key || key.trim() === "" || key === "your_gemini_api_key_here") {
-    console.warn("[AI] Gemini API key not configured.");
+    console.warn("[AI] OpenRouter API key not configured.");
     return null;
   }
   return key.trim();
 }
 
-/**
- * Call the Gemini API.
- * Uses a multi-turn contents array so conversation history is
- * passed natively rather than concatenated into the prompt text.
- *
- * @param {string}   systemPrompt — injected as the first user turn
- * @param {Array}    contents     — [{role, parts:[{text}]}]
- * @param {number}   [maxTokens]  — default 1200
- * @returns {Promise<string>}
- */
-async function callGemini(systemPrompt, contents, maxTokens = 1200) {
+async function callAI(systemPrompt, messages, maxTokens = 1200) {
   const apiKey = getApiKey();
-  if (!apiKey) throw new Error("Gemini API key not configured.");
+  if (!apiKey) throw new Error("AI API key not configured.");
 
   const controller = new AbortController();
   const timeoutId  = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-  // Build the full contents array: system prompt + turns + current question
-  const fullContents = [
-    { role: "user",  parts: [{ text: systemPrompt }] },
-    { role: "model", parts: [{ text: "Understood. I will answer using only the live database data provided." }] },
-    ...contents,
-  ];
-
   try {
-    const res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+    const res = await fetch(OPENROUTER_URL, {
       method:  "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type":  "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+        "HTTP-Referer":  "https://learnify-backend-production-d53a.up.railway.app",
+        "X-Title":       "Learnify School Assistant",
+      },
       body: JSON.stringify({
-        contents: fullContents,
-        generationConfig: { temperature: 0.2, maxOutputTokens: maxTokens },
+        model:    OPENROUTER_MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...messages,
+        ],
+        max_tokens:  maxTokens,
+        temperature: 0.2,
       }),
       signal: controller.signal,
     });
@@ -76,12 +59,12 @@ async function callGemini(systemPrompt, contents, maxTokens = 1200) {
 
     if (!res.ok) {
       const errBody = await res.text().catch(() => "");
-      throw new Error(`Gemini ${res.status}: ${errBody.slice(0, 300)}`);
+      throw new Error(`OpenRouter ${res.status}: ${errBody.slice(0, 300)}`);
     }
 
     const data = await res.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text?.trim()) throw new Error("Gemini returned an empty response.");
+    const text = data.choices?.[0]?.message?.content;
+    if (!text?.trim()) throw new Error("AI returned an empty response.");
     return text.trim();
   } finally {
     clearTimeout(timeoutId);
@@ -180,23 +163,20 @@ async function askAssistant(question, history = []) {
   try {
     const systemPrompt = buildSystemPrompt(contextText);
 
-    // Convert conversation history to Gemini's content format
-    const historyContents = [];
+    // Convert conversation history to messages format
+    const messages = [];
     if (Array.isArray(history) && history.length > 0) {
-      // Keep last 8 turns to avoid exceeding token limits
       history.slice(-8).forEach(msg => {
-        historyContents.push({
-          role:  msg.role === "assistant" ? "model" : "user",
-          parts: [{ text: msg.text || "" }],
+        messages.push({
+          role:    msg.role === "assistant" ? "assistant" : "user",
+          content: msg.text || "",
         });
       });
     }
+    messages.push({ role: "user", content: question });
 
-    // Append the current question as the final user turn
-    historyContents.push({ role: "user", parts: [{ text: question }] });
-
-    const answer = await callGemini(systemPrompt, historyContents);
-    console.log(`[AI] Answered via Gemini (source: live DB + Gemini).`);
+    const answer = await callAI(systemPrompt, messages);
+    console.log(`[AI] Answered via OpenRouter (source: live DB + AI).`);
     return { answer, source: "gemini", actions: defaultActions() };
   } catch (err) {
     console.error("[AI] Gemini call failed:", err.message);
@@ -239,7 +219,7 @@ async function interpretDocument(documentText) {
       `  notes: string\n\n` +
       `Document:\n${documentText}`;
 
-    const raw     = await callGemini(prompt, [{ role: "user", parts: [{ text: prompt }] }], 600);
+    const raw     = await callAI(prompt, [{ role: "user", content: prompt }], 600);
     const cleaned = raw.replace(/^```json\s*|^```\s*|```\s*$/gm, "").trim();
 
     let parsed;
