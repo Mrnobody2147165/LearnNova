@@ -70,7 +70,7 @@ export default function Sidebar({ mobileOpen, onCloseMobile }) {
           <GraduationCap className="w-5 h-5 text-white" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-ink truncate">{school.name}</p>
+          <p className="text-sm font-semibold text-ink truncate">LearnNova</p>
           <p className="text-xs text-ink-muted truncate">Admin Portal</p>
         </div>
         <button

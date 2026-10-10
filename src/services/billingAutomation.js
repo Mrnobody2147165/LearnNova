@@ -43,7 +43,7 @@ export const billingAutomationService = {
     for (let i = 0; i < total; i++) {
       const challan = allChallans[i]
       const phone = whatsappService.formatWhatsAppNumber(challan.studentPhone || '03001234567')
-      const msg = whatsappService.generateChallanMessage(challan, schoolName)
+      const msg = await whatsappService.generateChallanMessage(challan, schoolName)
 
       // In Direct mode: generate & log link or dispatch via API
       try {

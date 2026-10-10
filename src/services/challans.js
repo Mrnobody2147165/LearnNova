@@ -11,7 +11,7 @@ const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-
 export const challanService = {
   // ── READ OPERATIONS (direct Supabase — low risk, anon key) ───
 
-  async getAll({ month, status, search } = {}) {
+  async getAll({ month, status, search, targetClass } = {}) {
     if (isSupabaseConfigured() && supabase) {
       try {
         let query = supabase
@@ -53,6 +53,21 @@ export const challanService = {
               paymentMethod: c.payment_method,
             }
           })
+
+          // Filter by class if specified
+          if (targetClass && targetClass !== 'all') {
+            const targetLower = String(targetClass).trim().toLowerCase()
+            const targetNum = targetLower.replace(/[^0-9]/g, '')
+            list = list.filter(c => {
+              const className = String(c.class || '').trim().toLowerCase()
+              const classNum = className.replace(/[^0-9]/g, '')
+              return (
+                className === targetLower ||
+                className === `class ${targetNum}` ||
+                (classNum === targetNum && className === `class ${targetNum}`)
+              )
+            })
+          }
 
           if (search) {
             const q = search.toLowerCase()

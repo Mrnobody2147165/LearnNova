@@ -24,6 +24,7 @@ export default function ChallanDetails() {
   const [loading, setLoading] = useState(true)
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false)
   const [phone, setPhone] = useState('')
+  const [previewMessage, setPreviewMessage] = useState('')
 
   useEffect(() => {
     challanService.getById(id).then(data => {
@@ -81,7 +82,7 @@ export default function ChallanDetails() {
           <Button variant="secondary" onClick={() => window.print()}>
             <Printer className="w-4 h-4" /> Print
           </Button>
-          <Button onClick={() => setWhatsappModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+          <Button onClick={() => { setWhatsappModalOpen(true); whatsappService.generateChallanMessage(challan, school.name).then(setPreviewMessage) }} className="bg-emerald-600 hover:bg-emerald-700 text-white">
             <MessageSquare className="w-4 h-4 mr-1.5" /> Send WhatsApp
           </Button>
         </div>
@@ -123,7 +124,7 @@ export default function ChallanDetails() {
               <span className="text-sm font-mono text-ink">{challan.studentPhone || 'Not Set'}</span>
               <button
                 type="button"
-                onClick={() => setWhatsappModalOpen(true)}
+                onClick={() => { setWhatsappModalOpen(true); whatsappService.generateChallanMessage(challan, school.name).then(setPreviewMessage) }}
                 className="text-xs text-primary hover:underline flex items-center gap-0.5"
               >
                 <Edit2 className="w-3 h-3" /> Change
@@ -221,7 +222,7 @@ export default function ChallanDetails() {
           <div>
             <p className="text-xs font-semibold text-ink mb-1.5">Formatted WhatsApp Message:</p>
             <div className="p-3 rounded-card bg-surface-app border border-border font-mono text-[11px] whitespace-pre-wrap text-ink-secondary max-h-48 overflow-y-auto">
-              {whatsappService.generateChallanMessage(challan, school.name)}
+              {previewMessage || 'Loading preview...'}
             </div>
           </div>
         </div>

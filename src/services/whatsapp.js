@@ -67,9 +67,10 @@ export const whatsappService = {
 
   /**
    * Build a formatted text message for a challan notification.
-   * Used by the UI preview panels and billing automation.
+   * Fetches a permanent Supabase Storage PDF URL from the backend
+   * so the link is publicly accessible to parents on any device.
    */
-  generateChallanMessage(challan, schoolName = 'LearnNova Model Grammar School') {
+  async generateChallanMessage(challan, schoolName = 'LearnNova Model Grammar School') {
     const studentName = challan.studentName || 'Student'
     const challanNo = challan.challanNo || challan.challan_number || 'N/A'
     const month = challan.month || challan.billing_month || 'N/A'
@@ -79,8 +80,21 @@ export const whatsappService = {
     const lateFee = challan.lateFee || challan.late_fee || 0
     const challanId = challan.rawId || challan.id || challanNo
 
-    // Use the configured backend URL so the link works for anyone anywhere
-    const pdfUrl = `${BACKEND_URL}/api/notify/pdf/challan/${challanId}`
+    // Fetch public Supabase Storage PDF URL from backend
+    let pdfUrl = null
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/notify/challan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challanId }),
+      })
+      const result = await res.json()
+      if (result?.summary?.pdfLink && !result.summary.pdfLink.includes('localhost') && !result.summary.pdfLink.includes('mock-storage')) {
+        pdfUrl = result.summary.pdfLink
+      }
+    } catch (err) {
+      console.warn('[WhatsApp] Could not fetch PDF URL from backend:', err.message)
+    }
 
     let msg = `*${schoolName}*\n`
     msg += `-----------------------------------\n`
@@ -92,8 +106,10 @@ export const whatsappService = {
     if (discount > 0) msg += `Scholarship / Discount: PKR ${Number(discount).toLocaleString()}\n`
     if (lateFee > 0) msg += `Late Fee Fine: PKR ${Number(lateFee).toLocaleString()}\n`
     msg += `Due Date: *${dueDate}*\n\n`
-    msg += `📄 View / Download Official PDF Voucher:\n`
-    msg += `${pdfUrl}\n\n`
+    if (pdfUrl) {
+      msg += `📄 View / Download Official PDF Voucher:\n`
+      msg += `${pdfUrl}\n\n`
+    }
     msg += `Please deposit fees by the due date. Thank you!\n`
     msg += `-----------------------------------\n`
     msg += `_This is an automated fee notice from ${schoolName}_`
@@ -168,12 +184,12 @@ export const whatsappService = {
 
     // If automated API mode is selected (meta / ultramsg / custom), route through backend for document attachment
     if (config.provider && config.provider !== 'direct') {
-      const res = await this.sendViaAutomatedAPI(formatted, this.generateChallanMessage(challan, schoolName), challan)
+      const res = await this.sendViaAutomatedAPI(formatted, await this.generateChallanMessage(challan, schoolName), challan)
       return { success: res.success, phone: formatted, automated: true }
     }
 
     // Direct WhatsApp Web Launcher: Embed direct PDF link in message, NO local browser file downloads!
-    const message = this.generateChallanMessage(challan, schoolName || 'LearnNova Model Academy')
+    const message = await this.generateChallanMessage(challan, schoolName || 'LearnNova Model Academy')
     const url = `https://wa.me/${formatted}?text=${encodeURIComponent(message)}`
     window.open(url, '_blank')
 

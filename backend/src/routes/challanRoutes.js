@@ -63,17 +63,22 @@ router.post("/generate", async (req, res) => {
     // Filter by class if targetClass is specified (not "all")
     let students = allStudents || [];
     if (targetClass && targetClass !== "all") {
-      const targetNum = String(targetClass).replace(/[^0-9]/g, "");
+      const targetLower = String(targetClass).trim().toLowerCase();
+      const targetNum = targetLower.replace(/[^0-9]/g, "");
+
       students = students.filter(st => {
-        const className = st.classes?.name || "";
+        const className = (st.classes?.name || "").trim().toLowerCase();
         const classNum = className.replace(/[^0-9]/g, "");
-        // Also check roll_number as fallback (used when current_class_id is not set)
-        const rollNum = String(st.roll_number || "").replace(/[^0-9]/g, "");
+
         return (
-          classNum === targetNum ||
-          className.toLowerCase() === `class ${targetNum}` ||
-          className.toLowerCase() === targetClass.toLowerCase() ||
-          rollNum === targetNum
+          // Exact full name match: "class 2" === "class 2"
+          className === targetLower ||
+          // Exact number match with "class X" pattern: classNum must equal targetNum AND class name must be "class X" exactly
+          (classNum === targetNum && className === `class ${targetNum}`) ||
+          // Exact number match with "grade X" pattern
+          (classNum === targetNum && className === `grade ${targetNum}`) ||
+          // If user passed a full name like "Class 2", match exactly
+          className === `class ${targetNum}`
         );
       });
       console.log(`[challans/generate] Filtered to class "${targetClass}": ${students.length} students`);

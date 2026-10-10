@@ -147,7 +147,7 @@ export default function Challans() {
       setGenerating(false)
       setGenerateOpen(false)
 
-      const latestChallans = await challanService.getAll({ month: genMonth, status: 'Pending' })
+      const latestChallans = await challanService.getAll({ month: genMonth, status: 'Pending', targetClass: genClass })
       const queueList = (latestChallans || []).map(c => ({
         id: c.id || c.challanNo,
         challanNo: c.challanNo,
@@ -180,10 +180,12 @@ export default function Challans() {
     toast.success('WhatsApp number updated for broadcast')
   }
 
-  // Single WhatsApp Verification
+  const [previewMessage, setPreviewMessage] = useState('')
+
   const handleOpenSingleVerify = (challan) => {
     setSingleVerifyChallan(challan)
     setVerifyPhone(challan.studentPhone || '')
+    whatsappService.generateChallanMessage(challan, school.name).then(setPreviewMessage)
   }
 
   const handleSendSingleWhatsApp = async () => {
@@ -647,7 +649,7 @@ export default function Challans() {
             <div>
               <p className="text-xs font-semibold text-ink mb-1.5">Formatted Message Preview:</p>
               <div className="p-3 rounded-card bg-surface-app border border-border font-mono text-[11px] whitespace-pre-wrap text-ink-secondary max-h-44 overflow-y-auto">
-                {whatsappService.generateChallanMessage(singleVerifyChallan, school.name)}
+                {previewMessage || 'Loading preview...'}
               </div>
               <button
                 type="button"
